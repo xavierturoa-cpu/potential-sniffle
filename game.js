@@ -100,79 +100,65 @@ try {
   player.position.set(4.5, 0, 5);
   scene.add(player);
 
-  // Towns and roadside buildings
-  const towns = [];
-  function addTown(z, name) {
+  // Towns: common words are combined to generate town names.
+  const townStarts = ["River", "Pine", "Lake", "Green", "Red", "Oak", "Hill", "Cedar", "Spring", "Sunny", "West", "East", "North", "South", "Golden", "Silver", "Blue", "Rose", "King", "Mill", "Stone", "Clear", "Bright", "Little", "Grand"];
+  const townEnds = ["dale", "creek", "wood", "ville", "ton", "field", "view", "ford", "vale", "side", "bury", "bridge", "town", "grove", "park", "heights", "point", "falls", "crossing", "junction"];
+  const streetWords = ["Main", "High", "Park", "Station", "Market", "Church", "School", "Queen", "King", "Victoria", "River", "Lake", "Bridge", "George", "William"];
+  function makeTownName(i) {
+    return townStarts[(i * 7 + 3) % townStarts.length] + townEnds[(i * 11 + 5) % townEnds.length];
+  }
+  function addTown(z, index) {
     const town = new T.Group();
-    town.userData.name = name;
+    town.userData.name = makeTownName(index);
+    town.userData.zoneLength = 850;
+    town.userData.speedLimit = 40 + ((index * 13) % 4) * 10; // 40, 50, 60 or 70
 
     const signCanvas = document.createElement("canvas");
-    signCanvas.width = 768;
-    signCanvas.height = 256;
+    signCanvas.width = 768; signCanvas.height = 256;
     const ctx = signCanvas.getContext("2d");
-    ctx.fillStyle = "#164f9c";
-    ctx.fillRect(0, 0, 768, 256);
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 100px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(name, 384, 128);
+    ctx.fillStyle = "#164f9c"; ctx.fillRect(0, 0, 768, 256);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 88px Arial";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(town.userData.name, 384, 128);
+    const sign = new T.Mesh(new T.PlaneGeometry(8, 2.7), new T.MeshBasicMaterial({ map: new T.CanvasTexture(signCanvas), side: T.DoubleSide }));
+    sign.position.set(11.2, 4.5, -20); town.add(sign);
 
-    const sign = new T.Mesh(
-      new T.PlaneGeometry(8, 2.7),
-      new T.MeshBasicMaterial({ map: new T.CanvasTexture(signCanvas), side: T.DoubleSide })
-    );
-    sign.position.set(11.5, 4.5, 0);
-    town.add(sign);
-
-    for (let i = 0; i < 5; i++) {
+    // Buildings run beside the same highway: there is no exit or separate road.
+    for (let i = 0; i < 16; i++) {
+      const side = i % 2 ? 1 : -1;
       const building = new T.Mesh(
-        new T.BoxGeometry(4 + Math.random() * 2, 3 + Math.random() * 3, 5),
-        new T.MeshLambertMaterial({ color: [0xd8c19f, 0xb96e4b, 0xaaaaaa, 0xe0d5bd][i % 4] })
+        new T.BoxGeometry(4 + (i % 3), 3 + (i % 4), 5 + (i % 2) * 2),
+        new T.MeshLambertMaterial({ color: [0xd8c19f, 0xb96e4b, 0xaaaaaa, 0xe0d5bd, 0xc9d1d9][i % 5] })
       );
-      building.position.set(-17 - i * 7, building.geometry.parameters.height / 2, 18 + i * 10);
+      building.position.set(side * (13 + (i % 4) * 3), building.geometry.parameters.height / 2, -70 - i * 45);
       town.add(building);
 
-      const roof = new T.Mesh(
-        new T.ConeGeometry(3.2, 1.4, 4),
-        new T.MeshLambertMaterial({ color: 0x8b3f2f })
-      );
+      const roof = new T.Mesh(new T.ConeGeometry(3.1, 1.3, 4), new T.MeshLambertMaterial({ color: 0x8b3f2f }));
       roof.rotation.y = Math.PI / 4;
-      roof.position.set(building.position.x, building.position.y + building.geometry.parameters.height / 2 + 0.7, building.position.z);
+      roof.position.set(building.position.x, building.position.y + building.geometry.parameters.height / 2 + 0.65, building.position.z);
       town.add(roof);
     }
 
-    town.position.z = z;
-    scene.add(town);
-    towns.push(town);
-  }
-
-  addTown(-1400, "RIVERDALE");
-  addTown(-2850, "PINE CREEK");
-  addTown(-4300, "OUTBACK");
-  addTown(-5750, "SUNSET");
-
-  // Curves and hills are represented by gently moving roadside objects and road sections.
-  const terrain = [];
-  for (let i = 0; i < 150; i++) {
-    for (const side of [-1, 1]) {
-      const g = new T.Group();
-      const trunk = new T.Mesh(
-        new T.CylinderGeometry(0.15, 0.22, 2.2, 8),
-        new T.MeshLambertMaterial({ color: 0x70452b })
-      );
-      trunk.position.y = 1.1;
-      const crown = new T.Mesh(
-        new T.ConeGeometry(1.3, 3.2, 8),
-        new T.MeshLambertMaterial({ color: 0x28733a })
-      );
-      crown.position.y = 3;
-      g.add(trunk, crown);
-      g.position.set(side * (18 + Math.random() * 18), 0, -i * 38 - 30);
-      scene.add(g);
-      terrain.push(g);
+    // Small town street-name signs for visual variety.
+    for (let i = 0; i < 4; i++) {
+      const c = document.createElement("canvas"); c.width = 420; c.height = 100;
+      const x = c.getContext("2d"); x.fillStyle = "#174f9c"; x.fillRect(0, 0, 420, 100);
+      x.fillStyle = "#fff"; x.font = "bold 34px Arial"; x.textAlign = "center"; x.textBaseline = "middle";
+      x.fillText(streetWords[(index + i * 3) % streetWords.length] + " St", 210, 50);
+      const streetSign = new T.Mesh(new T.PlaneGeometry(3.5, 0.8), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c), side: T.DoubleSide }));
+      streetSign.position.set(i % 2 ? 8.8 : -8.8, 2.2, -130 - i * 160);
+      streetSign.rotation.y = i % 2 ? Math.PI / 2 : -Math.PI / 2;
+      town.add(streetSign);
     }
+
+    town.position.z = z;
+    scene.add(town); towns.push(town);
   }
+
+  addTown(-1400, 0);
+  addTown(-2850, 1);
+  addTown(-4300, 2);
+  addTown(-5750, 3);
 
   // Traffic
   const traffic = [];
