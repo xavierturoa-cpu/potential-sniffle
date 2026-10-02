@@ -1,108 +1,20 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Infinite Highway 3D</title>
-<style>
-html,body{margin:0;height:100%;overflow:hidden;background:#79a9d2;font-family:Arial,sans-serif}canvas{display:block}
-#hud{position:fixed;top:14px;left:14px;color:#fff;background:#0009;padding:10px 14px;border-radius:10px;font:14px monospace;z-index:5;line-height:1.5}
-#speed{font-size:24px;font-weight:bold}#error{display:none;position:fixed;inset:0;background:#222;color:#fff;padding:40px;font:18px monospace;z-index:20}
-</style></head>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Infinite Highway 3D</title>
+  <link rel="stylesheet" href="style.css">
+</head>
 <body>
-<div id="hud"><div id="speed">0 km/h</div><div id="distance">0 m</div><div id="status">DRIVING</div><br>A/D or ←/→ steer · W/↑ accelerate<br>S/↓ brake · R restart</div>
-<div id="error"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-(()=>{if(!window.THREE){error.style.display='block';error.textContent='Could not load the 3D engine.';return}
-const T=THREE,S=new T.Scene();S.background=new T.Color(0x79a9d2);S.fog=new T.Fog(0x79a9d2,100,480);
-const C=new T.PerspectiveCamera(68,innerWidth/innerHeight,.1,1000),R=new T.WebGLRenderer({antialias:true});
-R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
-S.add(new T.HemisphereLight(0xeaf5ff,0x405040,1.45));let sun=new T.DirectionalLight(0xffffff,1.55);sun.position.set(-80,150,80);sun.castShadow=true;S.add(sun);
-const mat=c=>new T.MeshStandardMaterial({color:c,roughness:.88});
-const roadMat=mat(0x303235),grassMat=mat(0x55764d),lineMat=mat(0xf0e8c8),edgeMat=mat(0x8b8d89),treeMat=mat(0x315b38),trunkMat=mat(0x765437),rockMat=mat(0x77736b);
-const SEG=24,N=38,WIDTH=18;
-let segments=[],traffic=[],speed=0,distance=0,dead=false,lateral=0,spawnT=.5,best=0,keys={};
-
-function makeSeg(i){
- const g=new T.Group();g.position.z=-i*SEG;
- const road=new T.Mesh(new T.BoxGeometry(WIDTH,.22,SEG+1),roadMat);road.position.y=0;road.receiveShadow=true;g.add(road);
- for(const x of[-3,3]){const l=new T.Mesh(new T.BoxGeometry(.12,.035,6),lineMat);l.position.set(x,.13,0);g.add(l)}
- for(const x of[-9.2,9.2]){const e=new T.Mesh(new T.BoxGeometry(.8,.18,SEG+1),edgeMat);e.position.set(x,.1,0);g.add(e)}
- for(const side of[-1,1]){
-   if(Math.random()<.72){const x=side*(13+Math.random()*8),h=2+Math.random()*5;
-    const trunk=new T.Mesh(new T.CylinderGeometry(.12,.2,h*.45,7),trunkMat);trunk.position.set(x,h*.22,Math.random()*18-9);
-    const crown=new T.Mesh(new T.ConeGeometry(.9+Math.random()*1.2,h*.55,7),treeMat);crown.position.set(x,h*.7,trunk.position.z);g.add(trunk,crown)}
-   if(Math.random()<.35){const r=.5+Math.random()*1.2;let rock=new T.Mesh(new T.DodecahedronGeometry(r,0),rockMat);rock.position.set(side*(12+Math.random()*9),r*.6,Math.random()*18-9);g.add(rock)}
- }
- g.traverse(o=>{if(o.isMesh)o.castShadow=true});S.add(g);segments.push(g);
-}
-for(let i=0;i<N;i++)makeSeg(i);
-
-function carMesh(color){
- let g=new T.Group(),b=new T.Mesh(new T.BoxGeometry(2.15,.55,4.1),mat(color));
- let cab=new T.Mesh(new T.BoxGeometry(1.55,.68,1.75),new T.MeshStandardMaterial({color:0x9bb7c5,roughness:.22}));
- b.position.y=.65;cab.position.set(0,1.05,.15);g.add(b,cab);
- for(const x of[-1.08,1.08])for(const z of[-1.4,1.4]){let w=new T.Mesh(new T.CylinderGeometry(.38,.38,.28,14),mat(0x151719));w.rotation.z=Math.PI/2;w.position.set(x,.38,z);g.add(w)}
- g.traverse(o=>{if(o.isMesh)o.castShadow=true});return g;
-}
-const player=carMesh(0xd43d3d);S.add(player);
-const colors=[0xd4d4d4,0x4d76b3,0xd29a34,0x5c8069,0x875c69,0x25272a];
-
-function spawn(){
- let lane=Math.floor(Math.random()*3)-1,g=carMesh(colors[Math.floor(Math.random()*colors.length)]);
- g.position.set(lane*3,0,-180-Math.random()*260);g.scale.setScalar(.9);S.add(g);
- traffic.push({g,lane,speed:42+Math.random()*45});
-}
-function reset(){
- traffic.forEach(o=>S.remove(o.g));traffic=[];speed=0;distance=0;lateral=0;dead=false;spawnT=.5;
- player.position.set(0,.55,5);player.rotation.set(0,0,0);
-}
-addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyR')reset()});
-addEventListener('keyup',e=>keys[e.code]=false);
-addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});
-
-function update(dt){
- if(dead)return;
- let steer=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
- lateral+=steer*dt*8.5;lateral*=Math.pow(.82,dt*60);lateral=Math.max(-7.1,Math.min(7.1,lateral));
- if(keys.KeyW||keys.ArrowUp)speed+=55*dt;else speed-=7*dt;
- if(keys.KeyS||keys.ArrowDown)speed-=75*dt;
- speed=Math.max(0,Math.min(155,speed));distance+=speed*dt/3.6;
- player.position.x += (lateral-player.position.x)*Math.min(1,dt*9);
- player.rotation.z = -steer*.11; player.rotation.y = steer*.06;
-
- // Flat infinite world.
- const move=speed*dt*.24;
- for(const g of segments)g.position.z+=move;
- for(const o of traffic)o.g.position.z+=((speed-o.speed)*.18+speed*.24)*dt;
-
- // The road bends left/right while staying completely level.
- const ordered=[...segments].sort((a,b)=>a.position.z-b.position.z);
- // Straight flat highway: no road bending.
- const curvePhase=0;
- for(const g of segments){g.rotation.x=0;g.rotation.y=0;g.position.x=0}
- for(let i=0;i<segments.length;i++){
-   if(segments[i].position.z>SEG*1.5){
-     let far=segments.reduce((m,g)=>Math.min(m,g.position.z),Infinity);
-     segments[i].position.z=far-SEG;
-   }
- }
- }
-
- spawnT-=dt;if(spawnT<=0&&speed>20){spawn();spawnT=.7+Math.random()*1.1}
- for(let i=traffic.length-1;i>=0;i--){
-   let o=traffic[i];
-   if(o.g.position.z>35){S.remove(o.g);traffic.splice(i,1);continue}
-    o.g.position.x += ((o.lane*3)-o.g.position.x)*dt*2;
-   if(Math.abs(o.g.position.x-player.position.x)<1.7&&Math.abs(o.g.position.z-player.position.z)<3.2){dead=true;best=Math.max(best,Math.floor(distance))}
- }
- speedEl.textContent=Math.round(speed)+' km/h';distanceEl.textContent=Math.floor(distance)+' m';status.textContent=dead?'CRASH — press R':'BEST '+best+' m';
-}
-const speedEl=document.getElementById('speed'),distanceEl=document.getElementById('distance'),status=document.getElementById('status');
-reset();let clock=new T.Clock();
-function loop(){
- let dt=Math.min(clock.getDelta(),.033);update(dt);
- const camX=player.position.x*.78,camY=5.2;
- C.position.lerp(new T.Vector3(camX,camY,player.position.z+11),1-Math.pow(.00015,dt));
- C.lookAt(new T.Vector3(player.position.x,1.0,player.position.z-13));
- R.render(S,C);requestAnimationFrame(loop)
-}loop();
-})();</script></body></html>
+  <div id="hud">
+    <div id="speed">0 km/h</div>
+    <div id="distance">0 m</div>
+    <div id="status">DRIVING</div>
+    <div class="help">W / ↑ accelerate · S / ↓ brake<br>A / D or ← / → steer · R restart</div>
+  </div>
+  <div id="error"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
