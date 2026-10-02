@@ -17,7 +17,8 @@ try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
 
-  scene.add(new T.HemisphereLight(0xffffff, 0x446633, 1.8));\n  scene.add(new T.AmbientLight(0xffffff, 1.2));
+  scene.add(new T.HemisphereLight(0xffffff, 0x446633, 1.8));
+  scene.add(new T.AmbientLight(0xffffff, 1.2));
   const sun = new T.DirectionalLight(0xffffff, 2);
   sun.position.set(50, 100, 30);
   scene.add(sun);
@@ -548,7 +549,19 @@ try {
   }
 
   reset();
-  renderer.setAnimationLoop((time) => {\n    try {\n      gameLoop(time);\n    } catch (e) {\n      if (error) {\n        error.style.display = "block";\n        error.textContent = "GAME ERROR\\n\\n" + (e.stack || e);\n      }\n      renderer.setAnimationLoop(null);\n    }\n  });
+  renderer.setAnimationLoop((time) => {
+    try {
+      gameLoop(time);
+    } catch (e) {
+      if (error) {
+        error.style.display = "block";
+        error.textContent = "GAME ERROR\
+\
+" + (e.stack || e);
+      }
+      renderer.setAnimationLoop(null);
+    }
+  });
 
   addEventListener("resize", () => {
     camera.aspect = innerWidth / innerHeight;
@@ -558,7 +571,9 @@ try {
 } catch (e) {
   if (error) {
     error.style.display = "block";
-    error.textContent = "GAME ERROR\n\n" + (e.stack || e);
+    error.textContent = "GAME ERROR
+
+" + (e.stack || e);
   }
 }
 })();
