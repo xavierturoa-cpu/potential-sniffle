@@ -548,7 +548,7 @@ try {
   }
 
   reset();
-  renderer.setAnimationLoop(gameLoop);
+  renderer.setAnimationLoop((time) => {\n    try {\n      gameLoop(time);\n    } catch (e) {\n      if (error) {\n        error.style.display = "block";\n        error.textContent = "GAME ERROR\\n\\n" + (e.stack || e);\n      }\n      renderer.setAnimationLoop(null);\n    }\n  });
 
   addEventListener("resize", () => {
     camera.aspect = innerWidth / innerHeight;
