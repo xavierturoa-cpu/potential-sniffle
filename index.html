@@ -12,13 +12,13 @@ html,body{margin:0;height:100%;overflow:hidden;background:#79a9d2;font-family:Ar
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (()=>{if(!window.THREE){error.style.display='block';error.textContent='Could not load the 3D engine.';return}
-const T=THREE,S=new T.Scene();S.background=new T.Color(0x79a9d2);S.fog=new T.Fog(0x79a9d2,85,430);
+const T=THREE,S=new T.Scene();S.background=new T.Color(0x79a9d2);S.fog=new T.Fog(0x79a9d2,100,480);
 const C=new T.PerspectiveCamera(68,innerWidth/innerHeight,.1,1000),R=new T.WebGLRenderer({antialias:true});
 R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
 S.add(new T.HemisphereLight(0xeaf5ff,0x405040,1.45));let sun=new T.DirectionalLight(0xffffff,1.55);sun.position.set(-80,150,80);sun.castShadow=true;S.add(sun);
 const mat=c=>new T.MeshStandardMaterial({color:c,roughness:.88});
 const roadMat=mat(0x303235),grassMat=mat(0x55764d),lineMat=mat(0xf0e8c8),edgeMat=mat(0x8b8d89),treeMat=mat(0x315b38),trunkMat=mat(0x765437),rockMat=mat(0x77736b);
-const SEG=24,N=34,WIDTH=18;
+const SEG=24,N=38,WIDTH=18;
 let segments=[],traffic=[],speed=0,distance=0,dead=false,lateral=0,spawnT=.5,best=0,keys={};
 
 function makeSeg(i){
@@ -51,11 +51,6 @@ function spawn(){
  g.position.set(lane*3,0,-180-Math.random()*260);g.scale.setScalar(.9);S.add(g);
  traffic.push({g,lane,speed:42+Math.random()*45});
 }
-function roadYAt(z){
- let q=(-z)/SEG,i=Math.floor(q),f=q-i;
- let a=segments[Math.min(N-1,Math.max(0,i))],b=segments[Math.min(N-1,Math.max(0,i+1))];
- return 0;
-}
 function reset(){
  traffic.forEach(o=>S.remove(o.g));traffic=[];speed=0;distance=0;lateral=0;dead=false;spawnT=.5;
  player.position.set(0,.55,5);player.rotation.set(0,0,0);
@@ -74,38 +69,37 @@ function update(dt){
  player.position.x+=(lateral-player.position.x)*Math.min(1,dt*9);
  player.rotation.z=-steer*.11;player.rotation.y=steer*.07;
 
- // Move the whole world toward the player for an endless procedural road.
+ // Flat infinite world.
  const move=speed*dt*.24;
- for(const g of segments){g.position.z+=move}
+ for(const g of segments)g.position.z+=move;
  for(const o of traffic)o.g.position.z+=((speed-o.speed)*.18+speed*.24)*dt;
 
- // Recycle road sections. Each new section gets a random hill height and banking.
+ // The road bends left/right while staying completely level.
+ const ordered=[...segments].sort((a,b)=>a.position.z-b.position.z);
+ const curvePhase=distance*.00155;
+ for(let i=0;i<ordered.length;i++){
+   const g=ordered[i];
+   const ahead=i/ordered.length;
+   const curve=Math.sin(curvePhase+i*.18)*0.075+Math.sin(curvePhase*.43+i*.055)*0.045;
+   const targetYaw=curve;
+   g.rotation.x=0;
+   g.rotation.y+=(targetYaw-g.rotation.y)*dt*2.5;
+   // gentle lateral bend creates a real winding road
+   g.position.x=Math.sin(curvePhase+i*.16)*10+Math.sin(curvePhase*.37+i*.055)*7;
+ }
  for(let i=0;i<segments.length;i++){
    if(segments[i].position.z>SEG*1.5){
      let far=segments.reduce((m,g)=>Math.min(m,g.position.z),Infinity);
      segments[i].position.z=far-SEG;
-     const prev=segments.find(g=>Math.abs(g.position.z-(segments[i].position.z+SEG))<1);
-     const nextY=prev?prev.rotation.x*18:0;
-     segments[i].rotation.x=nextY/18 + (Math.random()-.5)*.09;
-     segments[i].rotation.y=(Math.random()-.5)*.14;
    }
  }
- // Give every section persistent-looking hills/turns through smooth segment rotations.
- let ordered=[...segments].sort((a,b)=>a.position.z-b.position.z);
- ordered.forEach((g,i)=>{
-   const phase=(distance*.002)+i*.34;
-   const targetPitch=Math.sin(phase)*.11+Math.sin(phase*.43)*.055;
-   const targetBank=Math.sin(phase*.67)*.13+Math.sin(phase*.23)*.05;
-   g.rotation.x+=(targetPitch-g.rotation.x)*dt*1.8;
-   g.rotation.y+=(targetBank-g.rotation.y)*dt*1.5;
- });
 
  spawnT-=dt;if(spawnT<=0&&speed>20){spawn();spawnT=.7+Math.random()*1.1}
  for(let i=traffic.length-1;i>=0;i--){
    let o=traffic[i];
    if(o.g.position.z>35){S.remove(o.g);traffic.splice(i,1);continue}
-   // Keep traffic on the road but let it follow the visual hills.
-   o.g.rotation.x=0;
+   // Traffic follows the approximate curve by shifting with the road.
+   o.g.position.x+=((Math.sin(curvePhase+(-o.g.position.z/SEG)*.16)*10)-o.g.position.x)*dt*.15;
    if(Math.abs(o.g.position.x-player.position.x)<1.7&&Math.abs(o.g.position.z-player.position.z)<3.2){dead=true;best=Math.max(best,Math.floor(distance))}
  }
  speedEl.textContent=Math.round(speed)+' km/h';distanceEl.textContent=Math.floor(distance)+' m';status.textContent=dead?'CRASH — press R':'BEST '+best+' m';
@@ -114,7 +108,6 @@ const speedEl=document.getElementById('speed'),distanceEl=document.getElementByI
 reset();let clock=new T.Clock();
 function loop(){
  let dt=Math.min(clock.getDelta(),.033);update(dt);
- // Camera follows the car, giving a Subway-Surfers-like centered steering view.
  const camX=player.position.x*.78,camY=5.2;
  C.position.lerp(new T.Vector3(camX,camY,player.position.z+11),1-Math.pow(.00015,dt));
  C.lookAt(new T.Vector3(player.position.x,1.0,player.position.z-13));
