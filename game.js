@@ -87,7 +87,8 @@ try {
   scene.add(player);
 
   const keys={};
-  addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="KeyR")reset();});
+  let cameraMode=0;
+  addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="KeyR")reset();if(e.code==="KeyV")cameraMode=1-cameraMode;});
   addEventListener("keyup",e=>keys[e.code]=false);
 
   let x=0,speed=65,distance=0,crashed=false,spawn=1;
@@ -148,10 +149,20 @@ try {
       
     }
 
-    camera.position.x+=(player.position.x*.45-camera.position.x)*Math.min(1,dt*5);
-    camera.position.y=6;
-    camera.position.z=14;
-    camera.lookAt(player.position.x,0,-70);
+    if(cameraMode===0){
+      camera.position.x+=(player.position.x*.45-camera.position.x)*Math.min(1,dt*5);
+      camera.position.y=6;
+      camera.position.z=14;
+      camera.lookAt(player.position.x,0,-70);
+    }else{
+      camera.position.x=player.position.x;
+      camera.position.y=1.35;
+      camera.position.z=3.2;
+      camera.lookAt(player.position.x,1.25,-70);
+    }
+    let speedEl=document.getElementById("speed");
+    if(!speedEl){speedEl=document.createElement("div");speedEl.id="speed";speedEl.style.cssText="position:fixed;left:20px;bottom:20px;color:white;font:700 24px Arial;text-shadow:2px 2px 4px #000;z-index:10;pointer-events:none";document.body.appendChild(speedEl);}
+    speedEl.textContent=Math.round(speed)+" km/h";
     renderer.render(scene,camera);
   }
 
