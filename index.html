@@ -1,35 +1,15 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Car Stunt Playground</title>
-<style>html,body{margin:0;height:100%;overflow:hidden;background:#87ceeb;font-family:Arial}canvas{display:block}#hud{position:fixed;top:14px;left:14px;background:#000b;color:#fff;padding:10px 14px;border-radius:10px;font-weight:bold}#help{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#000b;color:#fff;padding:8px 12px;border-radius:8px}</style>
-</head>
-<body><canvas id="game"></canvas><div id="hud">CAR STUNT PLAYGROUND<br>Speed: <span id="speed">0</span> km/h</div><div id="help">WASD / Arrow Keys to drive • R reset</div>
-<script>
-const c=document.getElementById('game'),x=c.getContext('2d'),speedEl=document.getElementById('speed');
-function resize(){c.width=innerWidth;c.height=innerHeight}addEventListener('resize',resize);resize();
-let car={x:180,y:430,vx:0,vy:0,angle:0,spin:0,onGround:false};
-const ramps=[{x:650,y:430,w:150,h:80},{x:1250,y:430,w:180,h:110},{x:1950,y:430,w:220,h:140}];
-const blocks=[{x:950,y:410,w:80,h:80},{x:1510,y:380,w:90,h:110},{x:2380,y:360,w:100,h:130}];
-let cam=0;
-function reset(){car={x:180,y:430,vx:0,vy:0,angle:0,spin:0,onGround:false}}
-addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r')reset()});
-function loop(){
- let left=keys.has('ArrowLeft')||keys.has('a'),right=keys.has('ArrowRight')||keys.has('d'),gas=keys.has('ArrowUp')||keys.has('w'),brake=keys.has('ArrowDown')||keys.has('s');
- if(gas)car.vx+=0.22;if(brake)car.vx-=0.12;if(left)car.angle-=0.035;if(right)car.angle+=0.035;
- car.vx*=.985;car.vx=Math.max(-8,Math.min(15,car.vx));car.x+=car.vx;car.vy+=0.42;car.y+=car.vy;
- let ground=500;
- for(const r of ramps){if(car.x>r.x&&car.x<r.x+r.w){let t=(car.x-r.x)/r.w;ground=430-r.h*t;}}
- if(car.y>ground-24){car.y=ground-24;car.vy=0;car.onGround=true;car.angle*=.92}else car.onGround=false;
- if(!car.onGround)car.angle+=car.vx*.008;
- if(car.y>800)reset();cam=Math.max(0,car.x-250);
- draw();speedEl.textContent=Math.round(Math.abs(car.vx)*10);requestAnimationFrame(loop)}
-const keys=new Set();addEventListener('keydown',e=>keys.add(e.key));addEventListener('keyup',e=>keys.delete(e.key));
-function draw(){x.clearRect(0,0,c.width,c.height);let g=x.createLinearGradient(0,0,0,c.height);g.addColorStop(0,'#78c9ff');g.addColorStop(1,'#dff5ff');x.fillStyle=g;x.fillRect(0,0,c.width,c.height);
- x.save();x.translate(-cam,0);x.fillStyle='#65b34f';x.fillRect(cam,500,5000,300);x.fillStyle='#555';x.fillRect(0,475,5000,25);
- for(const r of ramps){x.fillStyle='#d66';x.beginPath();x.moveTo(r.x,500);x.lineTo(r.x+r.w,500);x.lineTo(r.x+r.w,500-r.h);x.closePath();x.fill()}
- for(const b of blocks){x.fillStyle='#777';x.fillRect(b.x,b.y,b.w,b.h)}
- x.save();x.translate(car.x,car.y);x.rotate(car.angle);x.fillStyle='#e22';x.fillRect(-35,-16,70,28);x.fillStyle='#9ee8ff';x.fillRect(-15,-13,25,12);x.fillStyle='#111';x.beginPath();x.arc(-24,15,10,0,7);x.arc(24,15,10,0,7);x.fill();x.restore();x.restore()}
-loop();
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stunt Drive</title><style>html,body{margin:0;overflow:hidden;background:#111}canvas{display:block;width:100vw;height:100vh}#hud{position:fixed;top:10px;left:10px;color:#fff;font:14px monospace;user-select:none}</style></head><body><canvas id="c"></canvas><div id="hud">W/S throttle/brake · A/D steer · R reset<br>speed <span id="s">0</span> km/h</div><script>
+const c=document.getElementById('c'),g=c.getContext('2d'),S=document.getElementById('s');let W,H;function size(){W=c.width=innerWidth;H=c.height=innerHeight}onresize=size;size();
+const keys={};onkeydown=e=>{keys[e.key.toLowerCase()]=1;if(e.key.toLowerCase()==='r')reset()};onkeyup=e=>keys[e.key.toLowerCase()]=0;
+let car,cam=0;const track=[{x:0,y:0,w:600,h:0},{x:600,y:0,w:240,h:-90},{x:840,y:-90,w:350,h:90},{x:1190,y:0,w:180,h:-150},{x:1370,y:-150,w:400,h:150},{x:1770,y:0,w:260,h:-110},{x:2030,y:-110,w:500,h:110},{x:2530,y:0,w:300,h:-190},{x:2830,y:-190,w:650,h:190},{x:3480,y:0,w:600,h:0}];
+function ground(x){for(const p of track)if(x>=p.x&&x<=p.x+p.w){let t=(x-p.x)/p.w;return 520+p.h*t}return 700}
+function reset(){car={x:180,y:470,vx:0,vy:0,a:0,va:0,grounded:true,wheelBase:62};cam=0}reset();
+function physics(dt){const throttle=keys.w||keys.arrowup,brake=keys.s||keys.arrowdown,steer=(keys.a||keys.arrowleft?-1:0)+(keys.d||keys.arrowright?1:0);let sp=Math.hypot(car.vx,car.vy);
+ if(throttle)car.vx+=12*dt; if(brake)car.vx-=car.grounded?20*dt:3*dt; car.vx*=Math.pow(.18,dt);car.vx=Math.max(-18,Math.min(30,car.vx));
+ const gy=ground(car.x),slope=(ground(car.x+2)-ground(car.x-2))/4;const target=Math.atan2(slope,1);if(car.grounded){car.a+=(target-car.a)*Math.min(1,10*dt);car.vy=0;car.y=gy-28;const steerForce=steer*0.045*(Math.abs(car.vx)+2);car.va+=(steerForce-car.va*7)*dt;car.a+=car.va*dt}else{car.vy+=24*dt;car.y+=car.vy*dt;car.a+=steer*3.2*dt;car.va*=.995}
+ car.x+=car.vx*dt;if(car.y>=gy-28&&car.vy>=0){car.y=gy-28;car.vy=0;car.grounded=true}else car.grounded=false;
+ if(car.x<20)car.x=20;if(car.y>900)reset();cam+=(car.x-cam-W*.35)*Math.min(1,5*dt)}
+function draw(){g.fillStyle='#111';g.fillRect(0,0,W,H);g.save();g.translate(-cam,0);g.strokeStyle='#eee';g.lineWidth=70;g.lineCap='butt';g.beginPath();for(let x=0;x<4100;x+=4){let y=ground(x);if(x===0)g.moveTo(x,y);else g.lineTo(x,y)}g.stroke();g.strokeStyle='#444';g.lineWidth=54;g.beginPath();for(let x=0;x<4100;x+=4){let y=ground(x);if(x===0)g.moveTo(x,y);else g.lineTo(x,y)}g.stroke();
+ g.save();g.translate(car.x,car.y);g.rotate(car.a);g.fillStyle='#d22';g.fillRect(-38,-18,76,28);g.fillStyle='#222';g.fillRect(-25,10,18,10);g.fillRect(12,10,18,10);g.fillStyle='#8cf';g.fillRect(-14,-15,27,12);g.restore();g.restore();S.textContent=Math.round(Math.abs(car.vx)*3.6)}
+let last=performance.now();function loop(t){let dt=Math.min(.033,(t-last)/1000);last=t;physics(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
 </script></body></html>
