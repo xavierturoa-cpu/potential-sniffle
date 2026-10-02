@@ -555,9 +555,7 @@ try {
     } catch (e) {
       if (error) {
         error.style.display = "block";
-        error.textContent = "GAME ERROR\
-\
-" + (e.stack || e);
+        error.textContent = "GAME ERROR\\n\\n" + (e.stack || e);
       }
       renderer.setAnimationLoop(null);
     }
@@ -571,9 +569,7 @@ try {
 } catch (e) {
   if (error) {
     error.style.display = "block";
-    error.textContent = "GAME ERROR
-
-" + (e.stack || e);
+    error.textContent = "GAME ERROR\\n\\n" + (e.stack || e);
   }
 }
 })();
