@@ -30,9 +30,9 @@ grassMat.map=grassTexture;
 const grass=new T.Mesh(new T.PlaneGeometry(180,1800,1,1),grassMat); grass.rotation.x=-Math.PI/2; grass.position.set(0,-.08,-850); scene.add(grass);
 
 // Six-lane motorway: 3 lanes each direction, divided by a median.
-const laneXs=[-11,-6.5,-2,2,6.5,11];
+const laneXs=[-6.5];
 const markings=[];
-for(const x of [-9,-4.25,4.25,9]) for(let z=0;z>-1800;z-=14){const m=new T.Mesh(new T.BoxGeometry(.12,.035,6),lineMat);m.position.set(x,.03,z);scene.add(m);markings.push(m);}
+for(const x of [-2,2]) for(let z=0;z>-1800;z-=14){const m=new T.Mesh(new T.BoxGeometry(.12,.035,6),lineMat);m.position.set(x,.03,z);scene.add(m);markings.push(m);}
 const median=new T.Mesh(new T.BoxGeometry(1.2,.5,1800),new T.MeshLambertMaterial({color:0x777777})); median.position.set(0,.18,-850); scene.add(median);
 for(const x of [-14.6,14.6]){const edge=new T.Mesh(new T.BoxGeometry(.18,.04,1800),yellowMat);edge.position.set(x,.04,-850);scene.add(edge);}
 
@@ -74,7 +74,7 @@ function updateEngine(){if(!audioCtx)return;engineOsc.frequency.setTargetAtTime(
 addEventListener("keydown",e=>{startEngine();keys[e.code]=true;if(["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();if(e.code==="KeyR")reset();if(e.code==="KeyV")cameraMode=1-cameraMode;});
 addEventListener("keyup",e=>keys[e.code]=false);
 
-function addTraffic(){const side=Math.random()<.5?-1:1;const lanes=side<0?[-11,-6.5,-2]:[2,6.5,11];const t=car([0xffffff,0x4488dd,0xffaa22,0x44aa66][Math.floor(Math.random()*4)]);t.position.set(lanes[Math.floor(Math.random()*3)],0,-220-Math.random()*500);t.userData.dir=side; t.userData.cruise=(side<0?1:-1)*(8+Math.random()*18);scene.add(t);traffic.push(t);}
+function addTraffic(){const side=Math.random()<.5?-1:1;const lanes=[-6.5];const t=car([0xffffff,0x4488dd,0xffaa22,0x44aa66][Math.floor(Math.random()*4)]);t.position.set(lanes[Math.floor(Math.random()*3)],0,-220-Math.random()*500);t.userData.dir=side; t.userData.cruise=(side<0?1:-1)*(8+Math.random()*18);scene.add(t);traffic.push(t);}
 function policeCar(){const p=car(0x111111);p.scale.set(.9,.9,.9);p.userData.police=true;p.position.set(player.position.x+((Math.random()<.5?-1:1)*7),0,player.position.z+80);scene.add(p);police.push(p);}
 
 function reset(){speed=65;limit=100;x=2;cameraMode=0;spawn=1;distance=0;policeTimer=0;player.position.set(x,0,5);for(const t of traffic)scene.remove(t);traffic.length=0;for(const p of police)scene.remove(p);police.length=0;}
