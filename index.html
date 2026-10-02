@@ -1,218 +1,26 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Physics Car Playground</title>
-<style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#87b9d8;font-family:Arial,sans-serif}
-canvas{display:block;width:100%;height:100%}
-#hud{position:fixed;top:14px;left:14px;color:white;background:rgba(0,0,0,.55);padding:10px 13px;border-radius:8px;font:14px monospace;line-height:1.5;z-index:5;pointer-events:none}
-#speed{font-size:22px;font-weight:bold}
-#help{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:white;padding:8px 12px;border-radius:7px;font:13px monospace;z-index:5;pointer-events:none}
-#error{display:none;position:fixed;inset:0;background:#101317;color:white;padding:40px;font:18px monospace;z-index:20}
-</style>
-</head>
-<body>
-<div id="hud"><div id="speed">0 km/h</div><div id="state">ON GROUND</div><div>W/S throttle & brake<br>A/D steering · SPACE handbrake<br>R reset · T respawn</div></div>
-<div id="help">FREE-ROAM PHYSICS PLAYGROUND · ramps · jumps · obstacles</div>
-<div id="error">3D engine failed to load. Refresh the page and try again.</div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.min.js"></script>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Physics Car Playground</title><style>html,body{margin:0;height:100%;overflow:hidden;background:#87b9d8;font-family:Arial}canvas{display:block}#hud{position:fixed;top:14px;left:14px;color:#fff;background:#0009;padding:10px 13px;border-radius:8px;font:14px monospace;z-index:5;line-height:1.5}#speed{font-size:22px;font-weight:bold}#error{display:none;position:fixed;inset:0;background:#101317;color:#fff;padding:40px;font:18px monospace;z-index:20}</style></head><body><div id="hud"><div id="speed">0 km/h</div><div id="state">ON GROUND</div>W/S throttle & brake<br>A/D steering · SPACE handbrake<br>R/T respawn</div><div id="error"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-(function(){
-'use strict';
-if(!window.THREE){document.getElementById('error').style.display='block';return;}
-
-const THREE=window.THREE;
-const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x87b9d8);
-scene.fog=new THREE.Fog(0x87b9d8,120,430);
-const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.05,900);
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
-renderer.setSize(innerWidth,innerHeight);
-renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-if(THREE.SRGBColorSpace)renderer.outputColorSpace=THREE.SRGBColorSpace;
-document.body.appendChild(renderer.domElement);
-
-scene.add(new THREE.HemisphereLight(0xffffff,0x506044,2.2));
-const sun=new THREE.DirectionalLight(0xffffff,3);
-sun.position.set(-80,130,70);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
-
-const groundMat=new THREE.MeshStandardMaterial({color:0x64884e,roughness:1});
-const roadMat=new THREE.MeshStandardMaterial({color:0x45484b,roughness:.92});
-const rampMat=new THREE.MeshStandardMaterial({color:0x676b70,roughness:.82});
-const obstacleMat=new THREE.MeshStandardMaterial({color:0x85898c,roughness:.8});
-const carMat=new THREE.MeshStandardMaterial({color:0x176bd1,metalness:.25,roughness:.28});
-const tireMat=new THREE.MeshStandardMaterial({color:0x111214,roughness:.6});
-const glassMat=new THREE.MeshStandardMaterial({color:0x91c6d8,metalness:.15,roughness:.12});
-
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(700,700),groundMat);
-ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
-
-// Open playground: no race route. Everything is placed for free driving and jumps.
-const objects=[];
-function addBox(x,y,z,w,h,d,mat=obstacleMat,rot=0){
- const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
- mesh.position.set(x,y+h/2,z);mesh.rotation.y=rot;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
- objects.push({type:'box',x,y:y+h/2,z,w,h,d,rot,mesh});return mesh;
-}
-function addRamp(x,z,w,len,h,rot){
- const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,.8,len),rampMat);
- mesh.position.set(x,.4,z);mesh.rotation.y=rot;mesh.rotation.x=-Math.atan2(h,len);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
- objects.push({type:'ramp',x,z,w,len,h,rot,mesh});
-}
-
-// Large playground pieces.
-addRamp(0,-55,12,28,7,0);
-addRamp(42,-12,14,34,10,Math.PI*.15);
-addRamp(-45,18,13,30,9,-Math.PI*.2);
-addRamp(12,52,16,38,14,Math.PI*.5);
-addRamp(-55,-62,18,42,18,Math.PI*.25);
-addRamp(70,58,14,30,11,-Math.PI*.3);
-addRamp(-5,105,20,46,20,Math.PI*.5);
-
-// Blocks, walls and launch platforms to interact with.
-addBox(25,0,25,10,5,10,obstacleMat,.3);
-addBox(-28,0,-12,7,7,14,obstacleMat,-.2);
-addBox(58,0,-48,18,3,5,obstacleMat,.1);
-addBox(-72,0,45,8,9,8,obstacleMat,.4);
-addBox(35,0,85,12,6,12,obstacleMat,0);
-addBox(-65,0,-5,20,2,3,obstacleMat,-.4);
-addBox(70,0,10,4,12,4,obstacleMat,0);
-
-// A few low-poly barriers.
-for(let i=-3;i<=3;i++)addBox(i*14,0,72,9,.8,1.4,obstacleMat,0);
-
-// Car: visual body is separate from physics footprint.
-const carGroup=new THREE.Group();
-const body=new THREE.Mesh(new THREE.BoxGeometry(2.15,.58,4.25),carMat);body.position.y=.7;carGroup.add(body);
-const hood=new THREE.Mesh(new THREE.BoxGeometry(1.9,.22,1.15),carMat);hood.position.set(0,1.0,-1.48);carGroup.add(hood);
-const cabin=new THREE.Mesh(new THREE.BoxGeometry(1.62,.7,1.8),glassMat);cabin.position.set(0,1.18,.2);carGroup.add(cabin);
-const wheels=[];
-for(const x of[-1.08,1.08])for(const z of[-1.45,1.45]){
- const w=new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,.3,16),tireMat);w.rotation.z=Math.PI/2;w.position.set(x,.42,z);carGroup.add(w);wheels.push(w);
-}
-carGroup.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(carGroup);
-
-// Physics uses an oriented rounded-ish footprint: a capsule for collision, not a square.
-const car={p:new THREE.Vector3(0,1,35),v:new THREE.Vector3(),yaw:Math.PI,yawRate:0,steer:0,grounded:true,spin:0};
-const LENGTH=4.25,WIDTH=2.15,RADIUS=.48,HALF=LENGTH/2-RADIUS;
-const MASS=1100,ENGINE=12500,BRAKE=18000,MAX_SPEED=62;
-const keys=Object.create(null);
-addEventListener('keydown',e=>{keys[e.code]=true;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();if(e.code==='KeyR'||e.code==='KeyT')respawn();});
-addEventListener('keyup',e=>{keys[e.code]=false;});
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
-
-function fwd(){return new THREE.Vector3(Math.sin(car.yaw),0,Math.cos(car.yaw));}
-function right(){return new THREE.Vector3(Math.cos(car.yaw),0,-Math.sin(car.yaw));}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-
-function rampSurface(x,z){
- let best=0;
- for(const r of objects){if(r.type!=='ramp')continue;
-  const dx=x-r.x,dz=z-r.z,c=Math.cos(r.rot),s=Math.sin(r.rot);
-  const localX=dx*c-dz*s,localZ=dx*s+dz*c;
-  if(Math.abs(localX)<=r.w/2&&Math.abs(localZ)<=r.len/2){
-   const t=(localZ+r.len/2)/r.len;
-   best=Math.max(best,r.h*clamp(t,0,1));
-  }
- }
- return best;
-}
-function surfaceHeight(x,z){return rampSurface(x,z);}
-
-// Capsule-vs-box collision in the car's local horizontal plane.
-function resolveObstacles(){
- const f=fwd(),r=right();
- for(const o of objects){
-  if(o.type!=='box')continue;
-  const dx=car.p.x-o.x,dz=car.p.z-o.z,c=Math.cos(o.rot),s=Math.sin(o.rot);
-  const lx=dx*c-dz*s,lz=dx*s+dz*c;
-  const carX=Math.abs(lx*r.dot(new THREE.Vector3(c,0,s))+lz*f.dot(new THREE.Vector3(c,0,s)));
-  // Use closest point against a capsule centered on the car's longitudinal axis.
-  const localForward=lx*f.x+lz*f.z;
-  const localSide=lx*r.x+lz*r.z;
-  const qx=clamp(localSide,-o.w/2,o.w/2),qz=clamp(localForward,-o.d/2,o.d/2);
-  const ex=localSide-qx,ez=localForward-qz,dist=Math.hypot(ex,ez);
-  if(dist<RADIUS){
-   const nx=dist>.001?ex/dist:1,nz=dist>.001?ez/dist:0;
-   const worldN=new THREE.Vector3(c*nx-s*nz,0,s*nx+c*nz);
-   const push=RADIUS-dist+.01;car.p.addScaledVector(worldN,push);
-   const vn=car.v.dot(worldN);
-   if(vn<0)car.v.addScaledVector(worldN,-vn*1.45);
-   car.v.multiplyScalar(.84);car.yawRate*=.65;
-  }
- }
-}
-
-function physics(dt){
- const throttle=keys.KeyW||keys.ArrowUp;
- const braking=keys.KeyS||keys.ArrowDown;
- const steer=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
- const hand=!!keys.Space;
- const F=fwd(),R=right();
- const long=car.v.dot(F),lat=car.v.dot(R),speed=Math.abs(long);
- const steerMax=.62*(1-clamp(speed/80,0,.58));
- car.steer+=(steer*steerMax-car.steer)*Math.min(1,10*dt);
-
- // Forces: engine, braking, rolling resistance and quadratic air drag.
- let force=0;
- if(throttle)force+=ENGINE*(1-clamp(Math.abs(long)/MAX_SPEED,0,.9));
- if(braking)force-=BRAKE*Math.sign(long||1);
- force-=75*long;
- force-=.55*long*Math.abs(long);
- car.v.addScaledVector(F,force/MASS*dt);
-
- // Tire lateral force. Handbrake deliberately lowers rear grip.
- const grip=hand?2.4:8.5;
- car.v.addScaledVector(R,-lat*grip*dt);
- if(Math.abs(long)>1){
-  const targetYaw=(long/2.75)*Math.tan(car.steer);
-  car.yawRate+=(targetYaw-car.yawRate)*(hand?4.5:8.5)*dt;
- }
- car.yaw+=car.yawRate*dt;
- car.v.multiplyScalar(Math.pow(hand?.994:.997,dt*60));
- if(car.v.length()>MAX_SPEED)car.v.setLength(MAX_SPEED);
-
- // Gravity while airborne; ground/ramp contact is resolved from four wheel points.
- car.p.addScaledVector(car.v,dt);
- const wheelOffsets=[
-  F.clone().multiplyScalar(HALF).add(R.clone().multiplyScalar(WIDTH/2-.12)),
-  F.clone().multiplyScalar(HALF).add(R.clone().multiplyScalar(-WIDTH/2+.12)),
-  F.clone().multiplyScalar(-HALF).add(R.clone().multiplyScalar(WIDTH/2-.12)),
-  F.clone().multiplyScalar(-HALF).add(R.clone().multiplyScalar(-WIDTH/2+.12))
- ];
- let contact=0,total=0;
- for(const off of wheelOffsets){const p=car.p.clone().add(off);const h=surfaceHeight(p.x,p.z);if(p.y-.42<=h+.16){contact++;total+=h;}}
- if(contact>=2&&car.v.y<=2){car.p.y=total/contact+.43;car.v.y=0;car.grounded=true;}
- else{car.grounded=false;car.v.y-=25*dt;}
-
- resolveObstacles();
- if(car.p.y<-25)respawn();
-
- carGroup.position.copy(car.p);carGroup.rotation.y=car.yaw;
- car.spin+=car.v.length()*dt/.42;
- wheels.forEach((w,i)=>w.rotation.x=car.spin*(i%2?1:-1));
- wheels[0].rotation.y=car.steer;wheels[1].rotation.y=car.steer;
- document.getElementById('speed').textContent=Math.round(car.v.length()*3.6)+' km/h';
- document.getElementById('state').textContent=car.grounded?(hand?'DRIFTING':'ON GROUND'):'AIRBORNE';
-}
-
-function respawn(){car.p.set(0,1,35);car.v.set(0,0,0);car.yaw=Math.PI;car.yawRate=0;car.steer=0;car.grounded=true;carGroup.position.copy(car.p);carGroup.rotation.y=car.yaw;}
-respawn();
-const clock=new THREE.Clock();
-function loop(){
- const dt=Math.min(clock.getDelta(),.025);physics(dt);
- const F=fwd();const follow=9+Math.min(car.v.length()*.05,5);
- const target=car.p.clone().addScaledVector(F,-follow).add(new THREE.Vector3(0,4.5,0));
- camera.position.lerp(target,1-Math.pow(.00004,dt));
- camera.lookAt(car.p.clone().add(new THREE.Vector3(0,.8,0)).addScaledVector(F,4));
- renderer.render(scene,camera);requestAnimationFrame(loop);
-}
-loop();
-})();
-</script>
-</body>
-</html>
+(function(){'use strict';
+if(!window.THREE){var e=document.getElementById('error');e.style.display='block';e.textContent='Could not load the 3D engine. Check your internet connection and refresh.';return;}
+var T=THREE,S=new T.Scene();S.background=new T.Color(0x87b9d8);S.fog=new T.Fog(0x87b9d8,120,500);
+var C=new T.PerspectiveCamera(68,innerWidth/innerHeight,.05,1000),R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
+S.add(new T.HemisphereLight(0xffffff,0x506044,2));var sun=new T.DirectionalLight(0xffffff,3);sun.position.set(-80,130,70);sun.castShadow=true;S.add(sun);
+function mat(c){return new T.MeshStandardMaterial({color:c,roughness:.85})}var grass=mat(0x64884e),road=mat(0x45484b),rampMat=mat(0x676b70),obs=mat(0x85898c),blue=new T.MeshStandardMaterial({color:0x176bd1,metalness:.2,roughness:.3}),black=mat(0x111214),glass=new T.MeshStandardMaterial({color:0x91c6d8,roughness:.15});
+var gnd=new T.Mesh(new T.PlaneGeometry(700,700),grass);gnd.rotation.x=-Math.PI/2;gnd.receiveShadow=true;S.add(gnd);var objs=[];
+function box(x,z,w,h,d,rot){var m=new T.Mesh(new T.BoxGeometry(w,h,d),obs);m.position.set(x,h/2,z);m.rotation.y=rot||0;m.castShadow=m.receiveShadow=true;S.add(m);objs.push({type:'box',x:x,z:z,w:w,h:h,d:d,rot:rot||0});}
+function ramp(x,z,w,l,h,rot){var m=new T.Mesh(new T.BoxGeometry(w,.8,l),rampMat);m.position.set(x,.4,z);m.rotation.y=rot||0;m.rotation.x=-Math.atan2(h,l);m.castShadow=m.receiveShadow=true;S.add(m);objs.push({type:'ramp',x:x,z:z,w:w,l:l,h:h,rot:rot||0});}
+ramp(0,-55,12,28,7,0);ramp(42,-12,14,34,10,.45);ramp(-45,18,13,30,9,-.6);ramp(12,52,16,38,14,1.57);ramp(-55,-62,18,42,18,.25);ramp(70,58,14,30,11,-.5);ramp(-5,105,20,46,20,1.57);
+box(25,25,10,5,10,.3);box(-28,-12,7,7,14,-.2);box(58,-48,18,3,5,.1);box(-72,45,8,9,8,.4);box(35,85,12,6,12,0);box(-65,-5,20,2,3,-.4);box(70,10,4,12,4,0);for(var i=-3;i<=3;i++)box(i*14,72,9,.8,1.4,0);
+var carG=new T.Group(),body=new T.Mesh(new T.BoxGeometry(2.15,.58,4.25),blue),hood=new T.Mesh(new T.BoxGeometry(1.9,.22,1.15),blue),cab=new T.Mesh(new T.BoxGeometry(1.62,.7,1.8),glass),wheels=[];body.position.y=.7;hood.position.set(0,1,-1.48);cab.position.set(0,1.18,.2);carG.add(body,hood,cab);for(var x of[-1.08,1.08])for(var z of[-1.45,1.45]){var w=new T.Mesh(new T.CylinderGeometry(.42,.42,.3,16),black);w.rotation.z=Math.PI/2;w.position.set(x,.42,z);carG.add(w);wheels.push(w)}carG.traverse(o=>{if(o.isMesh)o.castShadow=true});S.add(carG);
+var car={p:new T.Vector3(0,1,35),v:new T.Vector3(),yaw:Math.PI,yawRate:0,steer:0,grounded:true,spin:0},L=4.25,W=2.15,rad=.48,half=1.645,M=1100,ENG=12500,BRAKE=18000,MAX=62,keys={};
+addEventListener('keydown',function(e){keys[e.code]=1;if(e.code==='KeyR'||e.code==='KeyT')respawn();if(e.code==='Space')e.preventDefault()});addEventListener('keyup',e=>keys[e.code]=0);addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});
+function F(){return new T.Vector3(Math.sin(car.yaw),0,Math.cos(car.yaw))}function Q(){return new T.Vector3(Math.cos(car.yaw),0,-Math.sin(car.yaw))}function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function height(x,z){var best=0;for(var o of objs)if(o.type==='ramp'){var dx=x-o.x,dz=z-o.z,c=Math.cos(o.rot),s=Math.sin(o.rot),lx=dx*c-dz*s,lz=dx*s+dz*c;if(Math.abs(lx)<=o.w/2&&Math.abs(lz)<=o.l/2)best=Math.max(best,o.h*clamp((lz+o.l/2)/o.l,0,1))}return best}
+function collide(){var f=F(),r=Q();for(var o of objs)if(o.type==='box'){var dx=car.p.x-o.x,dz=car.p.z-o.z,c=Math.cos(o.rot),s=Math.sin(o.rot),wx=dx*c-dz*s,wz=dx*s+dz*c,localSide=wx*r.x+wz*r.z,localF=wx*f.x+wz*f.z,qx=clamp(localSide,-o.w/2,o.w/2),qz=clamp(localF,-o.d/2,o.d/2),ex=localSide-qx,ez=localF-qz,d=Math.hypot(ex,ez);if(d<rad){var nx=d>.001?ex/d:1,nz=d>.001?ez/d:0,n=new T.Vector3(c*nx-s*nz,0,s*nx+c*nz);car.p.addScaledVector(n,rad-d+.01);var vn=car.v.dot(n);if(vn<0)car.v.addScaledVector(n,-vn*1.5);car.v.multiplyScalar(.84);car.yawRate*=.6}}}
+function physics(dt){var th=keys.KeyW||keys.ArrowUp,br=keys.KeyS||keys.ArrowDown,si=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0),hand=!!keys.Space,f=F(),r=Q(),lv=car.v.dot(f),lat=car.v.dot(r),speed=Math.abs(lv);car.steer+=(si*.62*(1-clamp(speed/80,0,.58))-car.steer)*Math.min(1,10*dt);var force=(th?ENG*(1-clamp(speed/MAX,0,.9)):0)-(br?BRAKE*Math.sign(lv||1):0)-75*lv-.55*lv*Math.abs(lv);car.v.addScaledVector(f,force/M*dt);car.v.addScaledVector(r,-lat*(hand?2.4:8.5)*dt);if(speed>1){var target=lv/2.75*Math.tan(car.steer);car.yawRate+=(target-car.yawRate)*(hand?4.5:8.5)*dt}car.yaw+=car.yawRate*dt;car.v.multiplyScalar(Math.pow(hand?.994:.997,dt*60));if(car.v.length()>MAX)car.v.setLength(MAX);car.p.addScaledVector(car.v,dt);
+var offs=[f.clone().multiplyScalar(half).add(r.clone().multiplyScalar(W/2-.12)),f.clone().multiplyScalar(half).add(r.clone().multiplyScalar(-W/2+.12)),f.clone().multiplyScalar(-half).add(r.clone().multiplyScalar(W/2-.12)),f.clone().multiplyScalar(-half).add(r.clone().multiplyScalar(-W/2+.12))],ct=0,sum=0;for(var o of offs){var p=car.p.clone().add(o),h=height(p.x,p.z);if(p.y-.42<=h+.16){ct++;sum+=h}}if(ct>=2&&car.v.y<=2){car.p.y=sum/ct+.43;car.v.y=0;car.grounded=true}else{car.grounded=false;car.v.y-=25*dt}collide();if(car.p.y<-25)respawn();carG.position.copy(car.p);carG.rotation.y=car.yaw;car.spin+=car.v.length()*dt/.42;wheels.forEach((w,i)=>w.rotation.x=car.spin*(i%2?-1:1));wheels[0].rotation.y=car.steer;wheels[1].rotation.y=car.steer;document.getElementById('speed').textContent=Math.round(car.v.length()*3.6)+' km/h';document.getElementById('state').textContent=car.grounded?(hand?'DRIFTING':'ON GROUND'):'AIRBORNE'}
+function respawn(){car.p.set(0,1,35);car.v.set(0,0,0);car.yaw=Math.PI;car.yawRate=0;car.steer=0;car.grounded=true;carG.position.copy(car.p);carG.rotation.y=car.yaw}
+respawn();var clock=new T.Clock();function loop(){var dt=Math.min(clock.getDelta(),.025);physics(dt);var f=F(),dist=9+Math.min(car.v.length()*.05,5),target=car.p.clone().addScaledVector(f,-dist).add(new T.Vector3(0,4.5,0));C.position.lerp(target,1-Math.pow(.00004,dt));C.lookAt(car.p.clone().add(new T.Vector3(0,.8,0)).addScaledVector(f,4));R.render(S,C);requestAnimationFrame(loop)}loop();})();
+</script></body></html>
