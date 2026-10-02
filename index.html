@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Car Stunt Playground</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#87ceeb;font-family:Arial}canvas{display:block}#hud{position:fixed;top:14px;left:14px;background:#000b;color:#fff;padding:10px 14px;border-radius:10px;font-weight:bold}#help{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#000b;color:#fff;padding:8px 12px;border-radius:8px}</style>
+</head>
+<body><canvas id="game"></canvas><div id="hud">CAR STUNT PLAYGROUND<br>Speed: <span id="speed">0</span> km/h</div><div id="help">WASD / Arrow Keys to drive • R reset</div>
+<script>
+const c=document.getElementById('game'),x=c.getContext('2d'),speedEl=document.getElementById('speed');
+function resize(){c.width=innerWidth;c.height=innerHeight}addEventListener('resize',resize);resize();
+let car={x:180,y:430,vx:0,vy:0,angle:0,spin:0,onGround:false};
+const ramps=[{x:650,y:430,w:150,h:80},{x:1250,y:430,w:180,h:110},{x:1950,y:430,w:220,h:140}];
+const blocks=[{x:950,y:410,w:80,h:80},{x:1510,y:380,w:90,h:110},{x:2380,y:360,w:100,h:130}];
+let cam=0;
+function reset(){car={x:180,y:430,vx:0,vy:0,angle:0,spin:0,onGround:false}}
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r')reset()});
+function loop(){
+ let left=keys.has('ArrowLeft')||keys.has('a'),right=keys.has('ArrowRight')||keys.has('d'),gas=keys.has('ArrowUp')||keys.has('w'),brake=keys.has('ArrowDown')||keys.has('s');
+ if(gas)car.vx+=0.22;if(brake)car.vx-=0.12;if(left)car.angle-=0.035;if(right)car.angle+=0.035;
+ car.vx*=.985;car.vx=Math.max(-8,Math.min(15,car.vx));car.x+=car.vx;car.vy+=0.42;car.y+=car.vy;
+ let ground=500;
+ for(const r of ramps){if(car.x>r.x&&car.x<r.x+r.w){let t=(car.x-r.x)/r.w;ground=430-r.h*t;}}
+ if(car.y>ground-24){car.y=ground-24;car.vy=0;car.onGround=true;car.angle*=.92}else car.onGround=false;
+ if(!car.onGround)car.angle+=car.vx*.008;
+ if(car.y>800)reset();cam=Math.max(0,car.x-250);
+ draw();speedEl.textContent=Math.round(Math.abs(car.vx)*10);requestAnimationFrame(loop)}
+const keys=new Set();addEventListener('keydown',e=>keys.add(e.key));addEventListener('keyup',e=>keys.delete(e.key));
+function draw(){x.clearRect(0,0,c.width,c.height);let g=x.createLinearGradient(0,0,0,c.height);g.addColorStop(0,'#78c9ff');g.addColorStop(1,'#dff5ff');x.fillStyle=g;x.fillRect(0,0,c.width,c.height);
+ x.save();x.translate(-cam,0);x.fillStyle='#65b34f';x.fillRect(cam,500,5000,300);x.fillStyle='#555';x.fillRect(0,475,5000,25);
+ for(const r of ramps){x.fillStyle='#d66';x.beginPath();x.moveTo(r.x,500);x.lineTo(r.x+r.w,500);x.lineTo(r.x+r.w,500-r.h);x.closePath();x.fill()}
+ for(const b of blocks){x.fillStyle='#777';x.fillRect(b.x,b.y,b.w,b.h)}
+ x.save();x.translate(car.x,car.y);x.rotate(car.angle);x.fillStyle='#e22';x.fillRect(-35,-16,70,28);x.fillStyle='#9ee8ff';x.fillRect(-15,-13,25,12);x.fillStyle='#111';x.beginPath();x.arc(-24,15,10,0,7);x.arc(24,15,10,0,7);x.fill();x.restore();x.restore()}
+loop();
+</script></body></html>
