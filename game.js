@@ -166,7 +166,7 @@ try {
     return towns.some(t => Math.abs(t.position.z - z) < 430);
   }
 
-  // Traffic
+  // Simple roadside trees\n  const terrain = [];\n  function addTree(z, side) {\n    const tree = new T.Group();\n    const trunk = new T.Mesh(new T.CylinderGeometry(0.25, 0.35, 2.2, 8), new T.MeshBasicMaterial({ color: 0x6b4226 }));\n    trunk.position.y = 1.1;\n    tree.add(trunk);\n    const crown = new T.Mesh(new T.ConeGeometry(1.6, 3.4, 8), new T.MeshBasicMaterial({ color: 0x287a35 }));\n    crown.position.y = 3.4;\n    tree.add(crown);\n    tree.position.set(side * (12 + Math.random() * 8), 0, z);\n    scene.add(tree);\n    terrain.push(tree);\n  }\n  for (let i = 0; i < 38; i++) {\n    addTree(-120 - i * 150, i % 2 ? 1 : -1);\n  }\n\n  // Traffic
   const traffic = [];
   const trafficColors = [0xffffff, 0x4488dd, 0xffaa22, 0x44aa66, 0xcc3333, 0x777777];
 
