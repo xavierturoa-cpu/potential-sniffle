@@ -31,6 +31,9 @@ try {
 
   // Endless world pieces
   const roadPieces = [];
+  function hillY(z) {
+    return Math.sin(z / 280) * 7 + Math.sin(z / 115) * 2.2;
+  }
   const grassPieces = [];
   const edgeLines = [];
   const centerLines = [];
@@ -42,25 +45,26 @@ try {
     const road = new T.Mesh(new T.PlaneGeometry(18, roadLength + 2), roadMat);
     road.rotation.x = -Math.PI / 2;
     road.position.z = z;
+    road.position.y = hillY(z);
     scene.add(road);
     roadPieces.push(road);
 
     const grass = new T.Mesh(new T.PlaneGeometry(220, roadLength + 2), grassMat);
     grass.rotation.x = -Math.PI / 2;
-    grass.position.y = -0.08;
+    grass.position.y = hillY(z) - 0.08;
     grass.position.z = z;
     scene.add(grass);
     grassPieces.push(grass);
 
     for (const x of [-8.8, 8.8]) {
       const edge = new T.Mesh(new T.BoxGeometry(0.16, 0.04, roadLength), yellowMat);
-      edge.position.set(x, 0.04, z);
+      edge.position.set(x, hillY(z) + 0.04, z);
       scene.add(edge);
       edgeLines.push(edge);
     }
 
     const center = new T.Mesh(new T.BoxGeometry(0.12, 0.035, 6), whiteMat);
-    center.position.set(0, 0.03, z);
+    center.position.set(0, hillY(z) + 0.03, z);
     scene.add(center);
     centerLines.push(center);
   }
@@ -98,7 +102,7 @@ try {
   }
 
   const player = makeCar(0xdd3333);
-  player.position.set(4.5, 0, 5);
+  player.position.set(-4.5, hillY(5), 5);
   scene.add(player);
 
   // Towns: common words are combined to generate town names.
@@ -358,14 +362,14 @@ try {
   function reset() {
     speed = 100;
     distance = 0;
-    playerX = 4.5;
+    playerX = -4.5;
     limit = 100;
     crashed = false;
     crashTimer = 0;
     policeTimer = 0;
     cruiseControl = false;
     cruiseSpeed = 0;
-    player.position.set(4.5, 0, 5);
+    player.position.set(-4.5, hillY(5), 5);
     player.rotation.set(0, 0, 0);
     for (const t of traffic) scene.remove(t);
     traffic.length = 0;
@@ -424,6 +428,7 @@ try {
       playerX += steer * 8 * dt;
       playerX = Math.max(2.3, Math.min(7.2, playerX));
       player.position.x += (playerX - player.position.x) * Math.min(1, dt * 12);
+      player.position.y = hillY(player.position.z);
       player.rotation.z = -steer * 0.08;
 
       if (cruiseControl) {
@@ -460,12 +465,14 @@ try {
     for (const tree of terrain) {
       tree.position.z += playerMove;
       if (tree.position.z > 100) tree.position.z -= 150 * 38;
+      tree.position.y = hillY(tree.position.z);
     }
 
     let inTown = false;
     for (const town of towns) {
       town.position.z += playerMove;
       if (town.position.z > 150) town.position.z -= 7200;
+      town.position.y = hillY(town.position.z);
       if (Math.abs(town.position.z) < 430) inTown = true;
     }
     if (inTown) {
@@ -484,6 +491,7 @@ try {
     for (const lane of passingLanes) {
       lane.position.z += playerMove;
       if (lane.position.z > 100) lane.position.z -= 6600;
+      lane.position.y = hillY(lane.position.z) + 0.015;
     }
 
     for (const t of traffic) {
@@ -494,6 +502,7 @@ try {
         playerMove +
         (t.userData.dir > 0 ? trafficSpeed : -trafficSpeed) * dt;
       t.position.z += relative;
+      t.position.y = hillY(t.position.z);
 
       if (t.position.z > 100) t.position.z -= 3000;
       if (t.position.z < -3000) t.position.z += 3000;
@@ -520,12 +529,14 @@ try {
     for (const p of police) {
       if (p.userData.active) {
         p.position.z += playerMove + p.userData.speed * dt * 0.25;
+        p.position.y = hillY(p.position.z);
         if (p.position.z > player.position.z + 15) p.position.z = player.position.z - 180;
         if (Math.abs(p.position.z - player.position.z) < 5 && speed > limit + 15) {
           speed = Math.max(0, speed - 80 * dt);
         }
       } else {
         p.position.z += playerMove;
+        p.position.y = hillY(p.position.z);
       }
     }
 
@@ -547,12 +558,12 @@ try {
     if (cameraMode === 0) {
       camera.position.x +=
         (player.position.x * 0.45 - camera.position.x) * Math.min(1, dt * 6);
-      camera.position.y = 6;
+      camera.position.y = hillY(player.position.z) + 6;
       camera.position.z = 15;
-      camera.lookAt(player.position.x, 0.7, -80);
+      camera.lookAt(player.position.x, hillY(-80) + 0.7, -80);
     } else {
-      camera.position.set(player.position.x, 1.35, 3);
-      camera.lookAt(player.position.x, 1.25, -100);
+      camera.position.set(player.position.x, hillY(player.position.z) + 1.35, 3);
+      camera.lookAt(player.position.x, hillY(-100) + 1.25, -100);
     }
 
     if (engine && gain) {
