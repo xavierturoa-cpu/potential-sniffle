@@ -8,8 +8,8 @@ try {
   const T = THREE;
 
   const scene = new T.Scene();
-  scene.background = new T.Color(0x78b7e8);
-  scene.fog = new T.Fog(0x78b7e8, 180, 900);
+  scene.background = new T.Color(0x72b7e8);
+  scene.fog = new T.Fog(0x72b7e8, 180, 900);
 
   const camera = new T.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 2500);
   const renderer = new T.WebGLRenderer({ antialias: true });
@@ -355,13 +355,6 @@ try {
   document.body.appendChild(pause);
 
   // First-person dashboard
-  const dashboard = document.createElement("div");
-  dashboard.id = "dashboard";
-  dashboard.style.cssText =
-    "display:none;position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:70%;height:85px;background:linear-gradient(#111,#050505);border-radius:40px 40px 0 0;z-index:15;pointer-events:none;box-shadow:0 -8px 30px #000";
-  dashboard.innerHTML =
-    "<div style='position:absolute;left:50%;top:25px;transform:translateX(-50%);color:#ddd;font:700 15px Arial'>AUSSIE HIGHWAY</div>";
-  document.body.appendChild(dashboard);
 
   function gameLoop() {
     const dt = Math.min(clock.getDelta(), 0.05);
@@ -493,11 +486,9 @@ try {
       camera.position.y = 6;
       camera.position.z = 15;
       camera.lookAt(player.position.x, 0.7, -80);
-      dashboard.style.display = "none";
     } else {
       camera.position.set(player.position.x, 1.35, 3);
       camera.lookAt(player.position.x, 1.25, -100);
-      dashboard.style.display = "block";
     }
 
     if (engine && gain) {
