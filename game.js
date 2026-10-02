@@ -160,6 +160,10 @@ try {
   addTown(-4300, 2);
   addTown(-5750, 3);
 
+  function isInTownAt(z) {
+    return towns.some(t => Math.abs(t.position.z - z) < 430);
+  }
+
   // Traffic
   const traffic = [];
   const trafficColors = [0xffffff, 0x4488dd, 0xffaa22, 0x44aa66, 0xcc3333, 0x777777];
@@ -178,7 +182,12 @@ try {
     traffic.push(car);
   }
 
-  for (let i = 0; i < 12; i++) spawnTraffic(-150 - i * 170);
+  for (let i = 0; i < 5; i++) {
+    spawnTraffic(-350 - i * 420, -1);
+  }
+  for (let i = 0; i < 2; i++) {
+    spawnTraffic(-650 - i * 900, 1);
+  }
 
   // Overtaking / passing lanes
   const passingLanes = [];
@@ -297,7 +306,7 @@ try {
     if (e.code === "KeyV") cameraMode = 1 - cameraMode;
     if (e.code === "KeyC") {
       cruiseControl = !cruiseControl;
-      cruiseSpeed = limit;
+      if (cruiseControl) cruiseSpeed = Math.min(120, Math.max(0, speed));
     }
     if (e.code === "KeyR") reset();
     if (e.code === "Escape" || e.code === "KeyP") {
@@ -334,7 +343,12 @@ try {
     player.rotation.set(0, 0, 0);
     for (const t of traffic) scene.remove(t);
     traffic.length = 0;
-    for (let i = 0; i < 12; i++) spawnTraffic(-150 - i * 170);
+    for (let i = 0; i < 5; i++) {
+      spawnTraffic(-350 - i * 420, -1);
+    }
+    for (let i = 0; i < 2; i++) {
+      spawnTraffic(-650 - i * 900, 1);
+    }
     for (const p of police) p.position.z = -1800;
   }
 
@@ -352,6 +366,7 @@ try {
     hud.innerHTML =
       Math.round(speed) + " km/h" + warning + cruise +
       "<br>Limit: " + limit + " km/h" +
+      "<br>Top speed: 120 km/h" +
       "<br>C = Cruise control" +
       "<br>" + (distance / 1000).toFixed(2) + " km";
   }
@@ -386,8 +401,7 @@ try {
       player.rotation.z = -steer * 0.08;
 
       if (cruiseControl) {
-        // Cruise control follows the posted speed limit, including town limits.
-        cruiseSpeed = limit;
+        // Cruise control holds the speed you had when C was pressed.
         speed += (cruiseSpeed - speed) * Math.min(1, dt * 4);
       } else {
         if (keys.KeyW || keys.ArrowUp) speed += 140 * dt;
@@ -397,7 +411,7 @@ try {
       if (keys.KeyW || keys.ArrowUp || keys.KeyS || keys.ArrowDown) {
         cruiseControl = false;
       }
-      speed = Math.max(0, speed);
+      speed = Math.max(0, Math.min(120, speed));
 
       // Gentle steering-based road curve illusion.
       const curve = Math.sin(distance / 380) * 0.35;
@@ -491,8 +505,15 @@ try {
 
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
-      spawnTraffic(-900 - Math.random() * 1600);
-      spawnTimer = 1.2 + Math.random() * 2;
+      const townAhead = isInTownAt(-900);
+      if (townAhead) {
+        // Busier streets in towns.
+        spawnTraffic(-550 - Math.random() * 900, Math.random() < 0.25 ? 1 : -1);
+      } else {
+        // Sparse highway traffic, with most same-direction cars in the left lane.
+        spawnTraffic(-1200 - Math.random() * 1800, Math.random() < 0.12 ? 1 : -1);
+      }
+      spawnTimer = townAhead ? 1.0 + Math.random() * 1.4 : 3.5 + Math.random() * 4.5;
     }
 
     distance += speed * dt / 3.6;
