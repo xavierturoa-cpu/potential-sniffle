@@ -91,8 +91,7 @@ function update(dt){
  for(let i=traffic.length-1;i>=0;i--){
    let o=traffic[i];
    if(o.g.position.z>35){S.remove(o.g);traffic.splice(i,1);continue}
-   // Traffic follows the approximate curve by shifting with the road.
-   o.g.position.x += ((o.lane*3)-o.g.position.x)*dt*2;
+    o.g.position.x += ((o.lane*3)-o.g.position.x)*dt*2;
    if(Math.abs(o.g.position.x-player.position.x)<1.7&&Math.abs(o.g.position.z-player.position.z)<3.2){dead=true;best=Math.max(best,Math.floor(distance))}
  }
  speedEl.textContent=Math.round(speed)+' km/h';distanceEl.textContent=Math.floor(distance)+' m';status.textContent=dead?'CRASH — press R':'BEST '+best+' m';
