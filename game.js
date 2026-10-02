@@ -74,12 +74,12 @@ addEventListener("keyup",e=>keys[e.code]=false);
 function truck(){const g=new T.Group(),body=new T.Mesh(new T.BoxGeometry(2.5,1.5,7),new T.MeshLambertMaterial({color:[0xffffff,0xd32f2f,0xeeeeee,0x3366aa][Math.floor(Math.random()*4)]}));body.position.y=1;g.add(body);const cab=new T.Mesh(new T.BoxGeometry(2.5,1.8,2.1),new T.MeshLambertMaterial({color:0xf2f2f2}));cab.position.set(0,1.2,2.25);g.add(cab);return g;}
 function addTraffic(){const side=Math.random()<.5?-1:1,t=Math.random()<.28?truck():car([0xffffff,0x4488dd,0xffaa22,0x44aa66][Math.floor(Math.random()*4)]);t.position.set(side<0?-4.5:4.5,0,-220-Math.random()*500);t.userData.dir=side;t.userData.lane=side>0?4.5:-4.5;t.userData.cruise=limit/3.6*(.94+Math.random()*.10);scene.add(t);traffic.push(t);}
 function policeCar(){const p=car(0x111111);p.scale.set(.9,.9,.9);p.userData.police=true;p.position.set(player.position.x+((Math.random()<.5?-1:1)*7),0,player.position.z+80);scene.add(p);police.push(p);}
-function reset(){speed=65;limit=100;x=4.5;cameraMode=0;spawn=1;distance=0;policeTimer=0;crashVX=0;crashVZ=0;crashSpin=0;crashTime=0;player.position.set(x,0,5);for(const t of traffic)scene.remove(t);traffic.length=0;for(const p of police)scene.remove(p);police.length=0;}
+function reset(){speed=100;limit=100;x=4.5;cameraMode=0;spawn=1;distance=0;policeTimer=0;crashVX=0;crashVZ=0;crashSpin=0;crashTime=0;player.position.set(x,0,5);for(const t of traffic)scene.remove(t);traffic.length=0;for(const p of police)scene.remove(p);police.length=0;}
 function frame(){
  requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.033);
  if(player.userData.crashed){crashTime-=dt;player.position.x+=crashVX*dt;player.position.z+=crashVZ*dt;crashVX*=.96;crashVZ*=.96;player.rotation.z+=crashSpin*dt;crashSpin*=.97;speed=Math.max(0,speed-20*dt);if(crashTime<=0){player.userData.crashed=false;player.rotation.z=0;player.position.set(x,0,5);speed=65;}}
  else{const steer=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);x+=steer*9*dt;x=Math.max(-7.5,Math.min(7.5,x));player.position.x+=(x-player.position.x)*Math.min(1,dt*10);player.rotation.z=-steer*.1;}
- if(keys.KeyW||keys.ArrowUp)speed+=60*dt;else speed-=3*dt;if(keys.KeyS||keys.ArrowDown)speed-=70*dt;speed=Math.max(20,speed);
+ if(keys.KeyW||keys.ArrowUp)speed+=120*dt;else speed-=0.8*dt;if(keys.KeyS||keys.ArrowDown)speed-=140*dt;speed=Math.max(0,speed);
  const move=speed*dt*.35;
  for(const m of markings){m.position.z+=move;if(m.position.z>30)m.position.z-=1800;}
  for(const s of scenery){s.position.z+=move;if(s.position.z>30)s.position.z-=1980;}
