@@ -46,9 +46,9 @@ function sign(z,limit){
 }
 const signs=[sign(-260,100),sign(-650,110),sign(-1040,100),sign(-1450,110)];
 
-let speed=65,limit=100,x=2,cameraMode=0,spawn=1,distance=0,policeTimer=0;
+\nfunction exitSign(z,name,dist){const g=new T.Group();const board=new T.Mesh(new T.BoxGeometry(6.8,2.1,.12),new T.MeshLambertMaterial({color:0x0b6b35}));board.position.y=4.2;g.add(board);const pole=new T.Mesh(new T.CylinderGeometry(.08,.08,4.2,8),new T.MeshLambertMaterial({color:0x888888}));pole.position.y=2.1;g.add(pole);const cv=document.createElement("canvas");cv.width=512;cv.height=160;const ctx=cv.getContext("2d");ctx.fillStyle="#0b6b35";ctx.fillRect(0,0,512,160);ctx.fillStyle="white";ctx.font="bold 46px Arial";ctx.textAlign="center";ctx.fillText("EXIT",256,55);ctx.font="bold 34px Arial";ctx.fillText(name,256,100);ctx.font="28px Arial";ctx.fillText(dist+" km",256,137);const tx=new T.CanvasTexture(cv);const face=new T.Mesh(new T.PlaneGeometry(6.65,2.05),new T.MeshBasicMaterial({map:tx}));face.position.set(0,4.2,-.08);g.add(face);g.position.set(-17,0,z);scene.add(g);return g;}\nconst exits=[exitSign(-350,"WATTLE GROVE",1),exitSign(-800,"RIVERDALE",2),exitSign(-1250,"COASTAL TOWN",1)];\nlet speed=65,limit=100,x=2,cameraMode=0,spawn=1,distance=0,policeTimer=0;\nconst clock=new T.Clock();
 const keys={},traffic=[],police=[];
-addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="KeyR")reset();if(e.code==="KeyV")cameraMode=1-cameraMode;});
+addEventListener("keydown",e=>{keys[e.code]=true;if(["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();if(e.code==="KeyR")reset();if(e.code==="KeyV")cameraMode=1-cameraMode;});
 addEventListener("keyup",e=>keys[e.code]=false);
 
 function addTraffic(){const side=Math.random()<.5?-1:1;const lanes=side<0?[-11,-6.5,-2]:[2,6.5,11];const t=car([0xffffff,0x4488dd,0xffaa22,0x44aa66][Math.floor(Math.random()*4)]);t.position.set(lanes[Math.floor(Math.random()*3)],0,-220-Math.random()*500);t.userData.dir=side;scene.add(t);traffic.push(t);}
@@ -57,14 +57,14 @@ function policeCar(){const p=car(0x111111);p.scale.set(.9,.9,.9);p.userData.poli
 function reset(){speed=65;limit=100;x=2;cameraMode=0;spawn=1;distance=0;policeTimer=0;player.position.set(x,0,5);for(const t of traffic)scene.remove(t);traffic.length=0;for(const p of police)scene.remove(p);police.length=0;}
 
 function frame(){
- requestAnimationFrame(frame);const dt=Math.min(new T.Clock().getDelta(),.033);
+ requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.033);
  const steer=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);x+=steer*9*dt;x=Math.max(-12,Math.min(12,x));player.position.x+=(x-player.position.x)*Math.min(1,dt*10);player.rotation.z=-steer*.1;
  if(keys.KeyW||keys.ArrowUp)speed+=60*dt;else speed-=3*dt;if(keys.KeyS||keys.ArrowDown)speed-=70*dt;speed=Math.max(20,Math.min(180,speed));
  const move=speed*dt*.35;
  for(const m of markings){m.position.z+=move;if(m.position.z>30)m.position.z-=1800;}
  for(const s of scenery){s.position.z+=move;if(s.position.z>30)s.position.z-=1980;}
  for(const t of towns){t.position.z+=move;if(t.position.z>100)t.position.z-=1800;}
- for(const s of signs){s.position.z+=move;if(s.position.z>50){s.position.z-=1800;limit=s.userData?.limit||limit;}}
+ for(const s of signs){s.position.z+=move;if(s.position.z>50)s.position.z-=1800;}\n for(const e of exits){e.position.z+=move;if(e.position.z>80)e.position.z-=1800;}
  for(const t of traffic){t.position.z+=move*(t.userData.dir<0?1:.92);if(Math.abs(t.position.z-player.position.z)<3&&Math.abs(t.position.x-player.position.x)<2){}}
  spawn-=dt;if(spawn<=0){addTraffic();spawn=1+Math.random()*1.5;}
  // Speed enforcement: police can spawn after sustained speeding or driving well below the posted limit.
@@ -73,7 +73,7 @@ function frame(){
  for(let i=police.length-1;i>=0;i--){const p=police[i];p.position.z+=move*1.12;p.position.x+=(player.position.x-p.position.x)*dt*.8;if(Math.abs(p.position.z-player.position.z)<3&&Math.abs(p.position.x-player.position.x)<2){speed=40;}if(p.position.z>40){scene.remove(p);police.splice(i,1);}}
  if(cameraMode===0){camera.position.x+=(player.position.x*.45-camera.position.x)*Math.min(1,dt*5);camera.position.y=6;camera.position.z=14;camera.lookAt(player.position.x,0,-70);}
  else{camera.position.set(player.position.x,1.35,3.2);camera.lookAt(player.position.x,1.25,-70);}
- let el=document.getElementById("speed");if(!el){el=document.createElement("div");el.id="speed";el.style.cssText="position:fixed;left:20px;bottom:20px;color:white;font:700 24px Arial;text-shadow:2px 2px 4px #000;z-index:10;pointer-events:none";document.body.appendChild(el);}el.textContent=Math.round(speed)+" km/h";
+ let el=document.getElementById("speed");if(!el){el=document.createElement("div");el.id="speed";el.style.cssText="position:fixed;left:20px;bottom:20px;color:white;font:700 24px Arial;text-shadow:2px 2px 4px #000;z-index:10;pointer-events:none";document.body.appendChild(el);}el.textContent=Math.round(speed)+" km/h";\n let de=document.getElementById("distance");if(!de){de=document.createElement("div");de.id="distance";de.style.cssText="position:fixed;left:20px;bottom:52px;color:white;font:700 20px Arial;text-shadow:2px 2px 4px #000;z-index:10;pointer-events:none";document.body.appendChild(de);}de.textContent=(distance/1000).toFixed(1)+" km";
  renderer.render(scene,camera);
 }
 addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
