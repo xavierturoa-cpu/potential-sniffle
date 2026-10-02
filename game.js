@@ -1,7 +1,9 @@
 (() => {
 "use strict";
 const error=document.getElementById("error");
-const showError=e=>{if(error){error.style.display="block";error.textContent="GAME ERROR\n\n"+e;}};
+const showError=e=>{if(error){error.style.display="block";error.textContent="GAME ERROR
+
+"+e;}};
 try{
 if(!window.THREE)throw new Error("Three.js did not load.");
 const T=THREE, scene=new T.Scene();
@@ -19,7 +21,9 @@ grassMat.map=grassTexture;const grass=new T.Mesh(new T.PlaneGeometry(180,1800),g
 
 const laneXs=[-4.5,4.5],markings=[];
 for(const x of [0])for(let z=0;z>-1800;z-=14){const m=new T.Mesh(new T.BoxGeometry(.12,.035,6),lineMat);m.position.set(x,.03,z);scene.add(m);markings.push(m);}
-const passingZones=[];for(let i=0;i<6;i++){const z=-700-i*1100,zone=new T.Group();zone.position.z=z;\n for(let j=0;j<65;j++){const m=new T.Mesh(new T.BoxGeometry(.12,.035,6),lineMat);m.position.set(6.75,.04,j*-14);zone.add(m);}\n scene.add(zone);passingZones.push(zone);}
+const passingZones=[];for(let i=0;i<6;i++){const z=-700-i*1100,zone=new T.Group();zone.position.z=z;
+ for(let j=0;j<65;j++){const m=new T.Mesh(new T.BoxGeometry(.12,.035,6),lineMat);m.position.set(6.75,.04,j*-14);zone.add(m);}
+ scene.add(zone);passingZones.push(zone);}
 const median=new T.Mesh(new T.BoxGeometry(.5,.5,1800),new T.MeshLambertMaterial({color:0x777777}));median.position.set(0,.18,-850);scene.add(median);
 for(const x of [-8.8,8.8]){const edge=new T.Mesh(new T.BoxGeometry(.18,.04,1800),yellowMat);edge.position.set(x,.04,-850);scene.add(edge);}
 
@@ -77,7 +81,7 @@ function policeCar(){const p=car(0x111111);p.scale.set(.9,.9,.9);p.userData.poli
 function reset(){speed=100;limit=100;x=4.5;cameraMode=0;spawn=1;distance=0;policeTimer=0;crashVX=0;crashVZ=0;crashSpin=0;crashTime=0;player.position.set(x,0,5);for(const t of traffic)scene.remove(t);traffic.length=0;for(const p of police)scene.remove(p);police.length=0;}
 function frame(){
  requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.033);
- if(player.userData.crashed){crashTime-=dt;player.position.x+=crashVX*dt;player.position.z+=crashVZ*dt;crashVX*=.96;crashVZ*=.96;player.rotation.z+=crashSpin*dt;crashSpin*=.97;speed=Math.max(0,speed-20*dt);if(crashTime<=0){player.userData.crashed=false;player.rotation.z=0;player.position.set(x,0,5);speed=65;}}
+ if(player.userData.crashed){crashTime-=dt;player.position.x+=crashVX*dt;player.position.z+=crashVZ*dt;crashVX*=.96;crashVZ*=.96;player.rotation.z+=crashSpin*dt;crashSpin*=.97;speed=Math.max(0,speed-20*dt);if(crashTime<=0){player.userData.crashed=false;player.rotation.z=0;player.position.set(x,0,5);speed=100;}}
  else{const steer=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);x+=steer*9*dt;x=Math.max(-7.5,Math.min(7.5,x));player.position.x+=(x-player.position.x)*Math.min(1,dt*10);player.rotation.z=-steer*.1;}
  if(keys.KeyW||keys.ArrowUp)speed+=120*dt;else speed-=0.8*dt;if(keys.KeyS||keys.ArrowDown)speed-=140*dt;speed=Math.max(0,speed);
  const move=speed*dt*.35;
@@ -87,7 +91,10 @@ function frame(){
  for(const t of towns){t.position.z+=move;if(t.position.z>100)t.position.z-=2400;}
  for(const s of signs){s.position.z+=move;if(s.position.z>50){s.position.z-=1800;limit=s.userData.limit;}}
  for(const e of exits){e.position.z+=move;if(e.position.z>80)e.position.z-=2400;}
- for(const t of traffic){\n   if(t.userData.dir>0 && Math.abs(t.position.z+350)<170 && Math.random()<0.015)t.position.x=6.75;\n   if(t.userData.dir>0 && Math.abs(t.position.z+350)>=170)t.position.x=4.5;\n   t.position.z+=move*(t.userData.dir<0?1:.92);t.position.z+=(t.userData.dir<0?1:-1)*t.userData.cruise*dt;if(!player.userData.crashed&&Math.abs(t.position.z-player.position.z)<3&&Math.abs(t.position.x-player.position.x)<2){player.userData.crashed=true;crashTime=2.5;crashVX=(player.position.x-t.position.x)*4;crashVZ=(player.position.z-t.position.z)*3;crashSpin=(Math.random()-.5)*9;speed=0;}}
+ for(const t of traffic){
+   if(t.userData.dir>0 && Math.abs(t.position.z+350)<170 && Math.random()<0.015)t.position.x=6.75;
+   if(t.userData.dir>0 && Math.abs(t.position.z+350)>=170)t.position.x=4.5;
+   t.position.z+=move*(t.userData.dir<0?1:.92);t.position.z+=(t.userData.dir<0?1:-1)*t.userData.cruise*dt;if(!player.userData.crashed&&Math.abs(t.position.z-player.position.z)<3&&Math.abs(t.position.x-player.position.x)<2){player.userData.crashed=true;crashTime=2.5;crashVX=(player.position.x-t.position.x)*4;crashVZ=(player.position.z-t.position.z)*3;crashSpin=(Math.random()-.5)*9;speed=0;}}
  spawn-=dt;if(spawn<=0){addTraffic();spawn=1+Math.random()*1.5;}
  if(speed>limit+15||speed<Math.max(35,limit-45))policeTimer+=dt;else policeTimer=Math.max(0,policeTimer-dt*.5);
  if(policeTimer>7&&police.length<2){policeCar();policeTimer=0;}
