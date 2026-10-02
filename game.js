@@ -17,13 +17,13 @@ try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
 
-  scene.add(new T.HemisphereLight(0xffffff, 0x446633, 1.8));
+  scene.add(new T.HemisphereLight(0xffffff, 0x446633, 1.8));\n  scene.add(new T.AmbientLight(0xffffff, 1.2));
   const sun = new T.DirectionalLight(0xffffff, 2);
   sun.position.set(50, 100, 30);
   scene.add(sun);
 
-  const roadMat = new T.MeshLambertMaterial({ color: 0x333333 });
-  const grassMat = new T.MeshLambertMaterial({ color: 0x4f8d48 });
+  const roadMat = new T.MeshBasicMaterial({ color: 0x333333 });
+  const grassMat = new T.MeshBasicMaterial({ color: 0x4f8d48 });
   const whiteMat = new T.MeshLambertMaterial({ color: 0xffffff });
   const yellowMat = new T.MeshLambertMaterial({ color: 0xf5c400 });
   const darkMat = new T.MeshLambertMaterial({ color: 0x222222 });
