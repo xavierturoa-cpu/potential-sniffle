@@ -18,9 +18,8 @@ canvas{display:block}
 <div id="hud"><div id="time">00:00.000</div><div id="stats">0 km/h · CHECKPOINT 1/8</div></div>
 <div id="msg">GO!</div>
 <div id="help">W / ↑ accelerate · S / ↓ brake · A D / ← → steer · SPACE drift · R restart</div>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
 <script type="module">
-import * as THREE from 'three';
+import * as THREE from "https://unpkg.com/three@0.180.0/build/three.module.js";
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x79b9df);
