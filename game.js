@@ -254,41 +254,6 @@ try {
   addSpeedSign(-4400, 100);
   addSpeedSign(-5200, 80);
 
-  // Town / exit signs
-  const exits = [];
-  function addExit(z, label) {
-    const g = new T.Group();
-    const board = new T.Mesh(
-      new T.BoxGeometry(6.5, 2.1, 0.18),
-      new T.MeshLambertMaterial({ color: 0x176b35 })
-    );
-    board.position.y = 4.4;
-    g.add(board);
-
-    const pole1 = new T.Mesh(new T.CylinderGeometry(0.08, 0.08, 4.3, 8), new T.MeshLambertMaterial({ color: 0x777777 }));
-    pole1.position.set(-2.3, 2.1, 0);
-    const pole2 = pole1.clone();
-    pole2.position.x = 2.3;
-    g.add(pole1, pole2);
-
-    const c = document.createElement("canvas");
-    c.width = 650; c.height = 210;
-    const x = c.getContext("2d");
-    x.fillStyle = "#176b35"; x.fillRect(0, 0, c.width, c.height);
-    x.fillStyle = "#fff"; x.font = "bold 58px Arial"; x.textAlign = "center"; x.textBaseline = "middle";
-    x.fillText(label, c.width / 2, c.height / 2);
-    board.material = new T.MeshBasicMaterial({ map: new T.CanvasTexture(c) });
-
-    g.position.set(11.2, 0, z);
-    scene.add(g);
-    exits.push(g);
-  }
-
-  addExit(-1350, "RIVERDALE EXIT");
-  addExit(-2800, "PINE CREEK EXIT");
-  addExit(-4250, "OUTBACK EXIT");
-  addExit(-5700, "SUNSET EXIT");
-
   // Police cars
   const police = [];
   function spawnPolice(z) {
@@ -445,16 +410,22 @@ try {
       if (tree.position.z > 100) tree.position.z -= 150 * 38;
     }
 
+    let inTown = false;
     for (const town of towns) {
       town.position.z += playerMove;
       if (town.position.z > 150) town.position.z -= 7200;
+      if (Math.abs(town.position.z) < 430) inTown = true;
+    }
+    if (inTown) {
+      const activeTown = towns.find(t => Math.abs(t.position.z) < 430);
+      if (activeTown) limit = activeTown.userData.speedLimit;
     }
 
     for (const sign of signs) {
       sign.position.z += playerMove;
       if (sign.position.z > 100) {
         sign.position.z -= 6000;
-        limit = sign.userData.limit;
+        if (!inTown) limit = sign.userData.limit;
       }
     }
 
