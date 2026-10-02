@@ -283,6 +283,8 @@ try {
   let crashTimer = 0;
   let spawnTimer = 0;
   let policeTimer = 0;
+  let cruiseControl = false;
+  let cruiseSpeed = 0;
   let paused = false;
   let audioCtx = null;
   let engine = null;
@@ -293,6 +295,10 @@ try {
     keys[e.code] = true;
     if (["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
     if (e.code === "KeyV") cameraMode = 1 - cameraMode;
+    if (e.code === "KeyC") {
+      cruiseControl = !cruiseControl;
+      cruiseSpeed = limit;
+    }
     if (e.code === "KeyR") reset();
     if (e.code === "Escape" || e.code === "KeyP") {
       paused = !paused;
@@ -322,6 +328,8 @@ try {
     crashed = false;
     crashTimer = 0;
     policeTimer = 0;
+    cruiseControl = false;
+    cruiseSpeed = 0;
     player.position.set(4.5, 0, 5);
     player.rotation.set(0, 0, 0);
     for (const t of traffic) scene.remove(t);
@@ -340,9 +348,11 @@ try {
       document.body.appendChild(hud);
     }
     const warning = speed > limit ? "  ⚠ SPEEDING" : "";
+    const cruise = cruiseControl ? "  🛣 CRUISE ON" : "";
     hud.innerHTML =
-      Math.round(speed) + " km/h" + warning +
+      Math.round(speed) + " km/h" + warning + cruise +
       "<br>Limit: " + limit + " km/h" +
+      "<br>C = Cruise control" +
       "<br>" + (distance / 1000).toFixed(2) + " km";
   }
 
@@ -375,9 +385,18 @@ try {
       player.position.x += (playerX - player.position.x) * Math.min(1, dt * 12);
       player.rotation.z = -steer * 0.08;
 
-      if (keys.KeyW || keys.ArrowUp) speed += 140 * dt;
-      else speed -= 1.5 * dt;
-      if (keys.KeyS || keys.ArrowDown) speed -= 180 * dt;
+      if (cruiseControl) {
+        // Cruise control follows the posted speed limit, including town limits.
+        cruiseSpeed = limit;
+        speed += (cruiseSpeed - speed) * Math.min(1, dt * 4);
+      } else {
+        if (keys.KeyW || keys.ArrowUp) speed += 140 * dt;
+        else speed -= 1.5 * dt;
+        if (keys.KeyS || keys.ArrowDown) speed -= 180 * dt;
+      }
+      if (keys.KeyW || keys.ArrowUp || keys.KeyS || keys.ArrowDown) {
+        cruiseControl = false;
+      }
       speed = Math.max(0, speed);
 
       // Gentle steering-based road curve illusion.
@@ -422,20 +441,18 @@ try {
       }
     }
 
-    for (const exit of exits) {
-      exit.position.z += playerMove;
-      if (exit.position.z > 100) exit.position.z -= 7200;
-    }
-
     for (const lane of passingLanes) {
       lane.position.z += playerMove;
       if (lane.position.z > 100) lane.position.z -= 6600;
     }
 
     for (const t of traffic) {
+      // Traffic follows the posted speed limit too. Opposing traffic travels
+      // in the opposite direction but uses the same limit.
+      const trafficSpeed = Math.min(t.userData.speed, limit);
       const relative =
         playerMove +
-        (t.userData.dir > 0 ? t.userData.speed : -t.userData.speed) * dt;
+        (t.userData.dir > 0 ? trafficSpeed : -trafficSpeed) * dt;
       t.position.z += relative;
 
       if (t.position.z > 100) t.position.z -= 3000;
