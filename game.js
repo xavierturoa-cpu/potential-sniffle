@@ -7,6 +7,16 @@ const showError=e=>{if(error){error.style.display="block";error.textContent="GAM
 try{
 if(!window.THREE)throw new Error("Three.js did not load.");
 const T=THREE, scene=new T.Scene();
+
+// Procedural Australian road textures and engine audio — no external assets required.
+function makeTexture(bg, marks=[]) {
+  const cv=document.createElement("canvas"); cv.width=256; cv.height=256;
+  const x=cv.getContext("2d"); x.fillStyle=bg; x.fillRect(0,0,256,256);
+  for(const m of marks){x.fillStyle=m[0];x.fillRect(m[1],m[2],m[3],m[4]);}
+  const tex=new T.CanvasTexture(cv); tex.wrapS=tex.wrapT=T.RepeatWrapping; tex.repeat.set(4,80); return tex;
+}
+const roadTexture=makeTexture("#303030",[["#383838",20,20,3,3],["#272727",130,100,4,4],["#3b3b3b",200,180,2,2]]);
+const grassTexture=makeTexture("#4f8d48",[["#5b984d",20,40,4,2],["#3d7b3e",150,120,5,3],["#629e51",80,210,3,2]]);
 scene.background=new T.Color(0x79b9ea);
 const camera=new T.PerspectiveCamera(68,innerWidth/innerHeight,.1,1800);
 const renderer=new T.WebGLRenderer({antialias:true}); renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); document.body.appendChild(renderer.domElement);
@@ -14,8 +24,10 @@ scene.add(new T.HemisphereLight(0xffffff,0x557744,1.7));
 const sun=new T.DirectionalLight(0xffffff,2); sun.position.set(50,80,30); scene.add(sun);
 
 const roadMat=new T.MeshLambertMaterial({color:0x303030}), grassMat=new T.MeshLambertMaterial({color:0x4f8d48}), lineMat=new T.MeshLambertMaterial({color:0xffffff}), yellowMat=new T.MeshLambertMaterial({color:0xf5c400});
-const road=new T.Mesh(new T.PlaneGeometry(30,1800),roadMat); road.rotation.x=-Math.PI/2; road.position.set(0,0,-850); scene.add(road);
-const grass=new T.Mesh(new T.PlaneGeometry(180,1800),grassMat); grass.rotation.x=-Math.PI/2; grass.position.set(0,-.08,-850); scene.add(grass);
+roadMat.map=roadTexture;
+const road=new T.Mesh(new T.PlaneGeometry(30,1800,1,1),roadMat); road.rotation.x=-Math.PI/2; road.position.set(0,0,-850); scene.add(road);
+grassMat.map=grassTexture;
+const grass=new T.Mesh(new T.PlaneGeometry(180,1800,1,1),grassMat); grass.rotation.x=-Math.PI/2; grass.position.set(0,-.08,-850); scene.add(grass);
 
 // Six-lane motorway: 3 lanes each direction, divided by a median.
 const laneXs=[-11,-6.5,-2,2,6.5,11];
@@ -54,7 +66,12 @@ const exits=[exitSign(-350,"WATTLE GROVE",1),exitSign(-800,"RIVERDALE",2),exitSi
 let speed=65,limit=100,x=2,cameraMode=0,spawn=1,distance=0,policeTimer=0;
 const clock=new T.Clock();
 const keys={},traffic=[],police=[];
-addEventListener("keydown",e=>{keys[e.code]=true;if(["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();if(e.code==="KeyR")reset();if(e.code==="KeyV")cameraMode=1-cameraMode;});
+// Simple engine sound that starts after the first key press (browser autoplay policy).
+let audioCtx=null,engineOsc=null,engineGain=null;
+function startEngine(){if(audioCtx)return; audioCtx=new (window.AudioContext||window.webkitAudioContext)(); engineOsc=audioCtx.createOscillator();engineGain=audioCtx.createGain();engineOsc.type="sawtooth";engineOsc.frequency.value=70;engineGain.gain.value=.035;engineOsc.connect(engineGain).connect(audioCtx.destination);engineOsc.start();}
+function updateEngine(){if(!audioCtx)return;engineOsc.frequency.setTargetAtTime(55+speed*.9,audioCtx.currentTime,.05);engineGain.gain.setTargetAtTime(.018+Math.min(speed/180,.8)*.045,audioCtx.currentTime,.08);}
+
+addEventListener("keydown",e=>{startEngine();keys[e.code]=true;if(["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();if(e.code==="KeyR")reset();if(e.code==="KeyV")cameraMode=1-cameraMode;});
 addEventListener("keyup",e=>keys[e.code]=false);
 
 function addTraffic(){const side=Math.random()<.5?-1:1;const lanes=side<0?[-11,-6.5,-2]:[2,6.5,11];const t=car([0xffffff,0x4488dd,0xffaa22,0x44aa66][Math.floor(Math.random()*4)]);t.position.set(lanes[Math.floor(Math.random()*3)],0,-220-Math.random()*500);t.userData.dir=side;scene.add(t);traffic.push(t);}
@@ -80,7 +97,7 @@ function frame(){
  for(let i=police.length-1;i>=0;i--){const p=police[i];p.position.z+=move*1.12;p.position.x+=(player.position.x-p.position.x)*dt*.8;if(Math.abs(p.position.z-player.position.z)<3&&Math.abs(p.position.x-player.position.x)<2){speed=40;}if(p.position.z>40){scene.remove(p);police.splice(i,1);}}
  if(cameraMode===0){camera.position.x+=(player.position.x*.45-camera.position.x)*Math.min(1,dt*5);camera.position.y=6;camera.position.z=14;camera.lookAt(player.position.x,0,-70);}
  else{camera.position.set(player.position.x,1.35,3.2);camera.lookAt(player.position.x,1.25,-70);}
- let el=document.getElementById("speed");if(!el){el=document.createElement("div");el.id="speed";el.style.cssText="position:fixed;left:20px;bottom:20px;color:white;font:700 24px Arial;text-shadow:2px 2px 4px #000;z-index:10;pointer-events:none";document.body.appendChild(el);}el.textContent=Math.round(speed)+" km/h";
+ let el=document.getElementById("speed");if(!el){el=document.createElement("div");el.id="speed";el.style.cssText="position:fixed;left:20px;bottom:20px;color:white;font:700 24px Arial;text-shadow:2px 2px 4px #000;z-index:10;pointer-events:none";document.body.appendChild(el);}el.textContent=Math.round(speed)+" km/h"; updateEngine();
  let de=document.getElementById("distance");if(!de){de=document.createElement("div");de.id="distance";de.style.cssText="position:fixed;left:20px;bottom:52px;color:white;font:700 20px Arial;text-shadow:2px 2px 4px #000;z-index:10;pointer-events:none";document.body.appendChild(de);}de.textContent=(distance/1000).toFixed(1)+" km";
  renderer.render(scene,camera);
 }
