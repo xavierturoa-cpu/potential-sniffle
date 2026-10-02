@@ -33,6 +33,10 @@ const grass=new T.Mesh(new T.PlaneGeometry(180,1800,1,1),grassMat); grass.rotati
 const laneXs=[-4.5,4.5];
 const markings=[];
 for(const x of [0]) for(let z=0;z>-1800;z-=14){const m=new T.Mesh(new T.BoxGeometry(.12,.035,6),lineMat);m.position.set(x,.03,z);scene.add(m);markings.push(m);}
+
+// Temporary overtaking lanes: a second lane appears every few kilometres.
+const passingZones=[];
+for(let i=0;i<6;i++){const z=-700-i*1100;const zone=new T.Group();zone.position.z=z;for(let j=0;j<65;j++){const m=new T.Mesh(new T.BoxGeometry(.12,.035,6),lineMat);m.position.set(2.25,.04,j*-14);zone.add(m);}scene.add(zone);passingZones.push(zone);}
 const median=new T.Mesh(new T.BoxGeometry(.5,.5,1800),new T.MeshLambertMaterial({color:0x777777})); median.position.set(0,.18,-850); scene.add(median);
 for(const x of [-8.8,8.8]){const edge=new T.Mesh(new T.BoxGeometry(.18,.04,1800),yellowMat);edge.position.set(x,.04,-850);scene.add(edge);}
 
@@ -50,7 +54,7 @@ const scenery=[]; for(let i=0;i<70;i++){const z=-i*28-20;scenery.push(tree(-25-M
 function building(x,z,s=1){const g=new T.Group();const b=new T.Mesh(new T.BoxGeometry(8*s,6*s,8*s),new T.MeshLambertMaterial({color:[0xc98f62,0xd6d6d6,0xb56b4f,0xe0b45f][Math.floor(Math.random()*4)]}));b.position.y=3*s;g.add(b);for(let i=0;i<3;i++){const w=new T.Mesh(new T.BoxGeometry(1*s,1*s,.15),new T.MeshLambertMaterial({color:0x8ec8df}));w.position.set(-2*s+i*2*s,3*s,4.05*s);g.add(w);}g.position.set(x,0,z);scene.add(g);return g;}
 const towns=[];
 function makeTown(z){const town=[];for(let i=0;i<9;i++){const side=i%2?-1:1;town.push(building(side*(34+Math.random()*18),z-Math.random()*110,0.7+Math.random()*1.1));}return town;}
-for(let i=0;i<5;i++)towns.push(...makeTown(-420-i*360));
+for(let i=0;i<3;i++)towns.push(...makeTown(-1800-i*2400));
 
 function sign(z,limit){
  const g=new T.Group(), pole=new T.Mesh(new T.CylinderGeometry(.08,.08,3.8,8),new T.MeshLambertMaterial({color:0x777777}));pole.position.y=1.9;
@@ -62,7 +66,7 @@ const signs=[sign(-260,100),sign(-650,110),sign(-1040,100),sign(-1450,110)];
 
 
 function exitSign(z,name,dist){const g=new T.Group();const board=new T.Mesh(new T.BoxGeometry(6.8,2.1,.12),new T.MeshLambertMaterial({color:0x0b6b35}));board.position.y=4.2;g.add(board);const pole=new T.Mesh(new T.CylinderGeometry(.08,.08,4.2,8),new T.MeshLambertMaterial({color:0x888888}));pole.position.y=2.1;g.add(pole);const cv=document.createElement("canvas");cv.width=512;cv.height=160;const ctx=cv.getContext("2d");ctx.fillStyle="#0b6b35";ctx.fillRect(0,0,512,160);ctx.fillStyle="white";ctx.font="bold 46px Arial";ctx.textAlign="center";ctx.fillText("EXIT",256,55);ctx.font="bold 34px Arial";ctx.fillText(name,256,100);ctx.font="28px Arial";ctx.fillText(dist+" km",256,137);const tx=new T.CanvasTexture(cv);const face=new T.Mesh(new T.PlaneGeometry(6.65,2.05),new T.MeshBasicMaterial({map:tx}));face.position.set(0,4.2,-.08);g.add(face);g.position.set(-17,0,z);scene.add(g);return g;}
-const exits=[exitSign(-350,"WATTLE GROVE",1),exitSign(-800,"RIVERDALE",2),exitSign(-1250,"COASTAL TOWN",1)];
+const exits=[exitSign(-1750,"WATTLE GROVE",1),exitSign(-4150,"RIVERDALE",2),exitSign(-6550,"COASTAL TOWN",1)];
 let speed=65,limit=100,x=4.5,cameraMode=0,spawn=1,distance=0,policeTimer=0;
 const clock=new T.Clock();
 const keys={},traffic=[],police=[];
@@ -97,9 +101,10 @@ function frame(){
  const move=speed*dt*.35;
  for(const m of markings){m.position.z+=move;if(m.position.z>30)m.position.z-=1800;}
  for(const s of scenery){s.position.z+=move;if(s.position.z>30)s.position.z-=1980;}
- for(const t of towns){t.position.z+=move;if(t.position.z>100)t.position.z-=1800;}
+ for(const z of passingZones){z.position.z+=move;if(z.position.z>80)z.position.z-=6600;}
+ for(const t of towns){t.position.z+=move;if(t.position.z>100)t.position.z-=2400;}
  for(const s of signs){s.position.z+=move;if(s.position.z>50)s.position.z-=1800;}
- for(const e of exits){e.position.z+=move;if(e.position.z>80)e.position.z-=1800;}
+ for(const e of exits){e.position.z+=move;if(e.position.z>80)e.position.z-=2400;}
  for(const t of traffic){t.position.z+=move*(t.userData.dir<0?1:.92);
         // Traffic has its own cruising speed, so cars visibly move relative to the player.
         t.position.z += t.userData.cruise * dt;if(Math.abs(t.position.z-player.position.z)<3&&Math.abs(t.position.x-player.position.x)<2){}}
