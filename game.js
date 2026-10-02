@@ -101,6 +101,7 @@ try {
   scene.add(player);
 
   // Towns: common words are combined to generate town names.
+  const towns = [];
   const townStarts = ["River", "Pine", "Lake", "Green", "Red", "Oak", "Hill", "Cedar", "Spring", "Sunny", "West", "East", "North", "South", "Golden", "Silver", "Blue", "Rose", "King", "Mill", "Stone", "Clear", "Bright", "Little", "Grand"];
   const townEnds = ["dale", "creek", "wood", "ville", "ton", "field", "view", "ford", "vale", "side", "bury", "bridge", "town", "grove", "park", "heights", "point", "falls", "crossing", "junction"];
   const streetWords = ["Main", "High", "Park", "Station", "Market", "Church", "School", "Queen", "King", "Victoria", "River", "Lake", "Bridge", "George", "William"];
