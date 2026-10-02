@@ -107,39 +107,60 @@ try {
   const signs = [];
   function addSpeedSign(z, limit) {
     const g = new T.Group();
-    const pole = new T.Mesh(new T.CylinderGeometry(0.08, 0.08, 4, 8), new T.MeshLambertMaterial({ color: 0x777777 }));
-    pole.position.y = 2;
-    const board = new T.Mesh(new T.BoxGeometry(2.5, 2.1, 0.12), new T.MeshLambertMaterial({ color: 0xffffff }));
-    board.position.y = 4;
-    g.add(pole, board);
-    const c = document.createElement("canvas");
-    c.width = c.height = 256;
-    const ctx = c.getContext("2d");
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, 256, 256);
-    ctx.strokeStyle = "#111";
-    ctx.lineWidth = 8;
-    ctx.strokeRect(5, 5, 246, 246);
-    ctx.fillStyle = "#111";
+
+    const pole = new T.Mesh(
+      new T.CylinderGeometry(0.07, 0.07, 4.6, 8),
+      new T.MeshLambertMaterial({ color: 0x777777 })
+    );
+    pole.position.y = 2.3;
+    g.add(pole);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#f5f5f5";
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Australian-style red-ring speed sign
+    ctx.beginPath();
+    ctx.arc(256, 256, 205, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = 32;
+    ctx.strokeStyle = "#d71920";
+    ctx.stroke();
+
+    ctx.fillStyle = "#111111";
     ctx.textAlign = "center";
-    ctx.font = "bold 28px Arial";
-    ctx.fillText("SPEED LIMIT", 128, 58);
-    ctx.font = "bold 100px Arial";
-    ctx.fillText(String(limit), 128, 165);
-    ctx.font = "bold 24px Arial";
-    ctx.fillText("km/h", 128, 205);
-    const face = new T.Mesh(new T.PlaneGeometry(2.35, 1.95), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c) }));
-    face.position.set(0, 4, -0.08);
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 190px Arial";
+    ctx.fillText(String(limit), 256, 265);
+
+    const texture = new T.CanvasTexture(canvas);
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+    const face = new T.Mesh(
+      new T.PlaneGeometry(2.7, 2.7),
+      new T.MeshBasicMaterial({ map: texture, side: T.DoubleSide })
+    );
+    face.position.set(0, 4.25, -0.08);
     g.add(face);
-    g.position.set(12, 0, z);
+
+    g.position.set(11.5, 0, z);
     g.userData.limit = limit;
     scene.add(g);
     signs.push(g);
   }
-  addSpeedSign(-250, 100);
-  addSpeedSign(-700, 110);
-  addSpeedSign(-1150, 90);
-  addSpeedSign(-1600, 120);
+
+  addSpeedSign(-220, 100);
+  addSpeedSign(-520, 110);
+  addSpeedSign(-820, 90);
+  addSpeedSign(-1120, 100);
+  addSpeedSign(-1420, 120);
+  addSpeedSign(-1720, 100);
+  addSpeedSign(-2020, 110);
 
   const keys = {};
   addEventListener("keydown", e => {
