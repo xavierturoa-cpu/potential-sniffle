@@ -98,7 +98,7 @@ try {
     player.position.x=0;
     for(const t of traffic)scene.remove(t);
     traffic.length=0;
-    document.getElementById("status").textContent="DRIVING";
+    
   }
 
   function addTraffic(){
@@ -139,13 +139,13 @@ try {
         if(t.position.z>30){scene.remove(t);traffic.splice(i,1);continue;}
         if(Math.abs(t.position.x-player.position.x)<1.8&&Math.abs(t.position.z-player.position.z)<3){
           crashed=true;
-          document.getElementById("status").textContent="CRASH — PRESS R";
+          
         }
       }
 
       distance+=speed*dt/3.6;
-      document.getElementById("speed").textContent=Math.round(speed)+" km/h";
-      document.getElementById("distance").textContent=Math.floor(distance)+" m";
+      
+      
     }
 
     camera.position.x+=(player.position.x*.45-camera.position.x)*Math.min(1,dt*5);
