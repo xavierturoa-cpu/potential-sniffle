@@ -24,9 +24,9 @@ try {
   const TERRAIN_RADIUS = 6;
 
   function terrainHeight(x, z) {
-    const a = Math.sin(x * 0.035) * 1.2;
-    const b = Math.cos(z * 0.045) * 1.0;
-    const c = Math.sin((x + z) * 0.018) * 1.4;
+    const a = Math.sin(x * 0.035) * 0.35;
+    const b = Math.cos(z * 0.045) * 0.3;
+    const c = Math.sin((x + z) * 0.018) * 0.45;
     return Math.max(0, a + b + c);
   }
 
@@ -51,6 +51,7 @@ try {
       geometry,
       new T.MeshBasicMaterial({ color: 0x4d963f })
     );
+    mesh.position.set(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE);
     scene.add(mesh);
     terrainChunks.set(key, mesh);
   }
@@ -68,6 +69,7 @@ try {
   }
 
   updateTerrainAround(0, 0);
+  let terrainUpdateTimer = 0;
 
   // Lakes.
   function makeLake(x, z, w, d) {
@@ -601,9 +603,9 @@ try {
       if (bot.timer <= 0 || bot.object.position.distanceTo(bot.target) < 0.8) {
         bot.timer = 1.5 + Math.random() * 3;
         bot.target.set(
-          Math.max(-85, Math.min(85, bot.object.position.x + (Math.random() - 0.5) * 18)),
+          bot.object.position.x + (Math.random() - 0.5) * 18,
           0,
-          Math.max(-85, Math.min(85, bot.object.position.z + (Math.random() - 0.5) * 18))
+          bot.object.position.z + (Math.random() - 0.5) * 18
         );
       }
 
