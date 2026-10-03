@@ -99,6 +99,45 @@ try {
   let speed = 0;
   let heading = 0;
   const keys = {};
+  let camYaw = 0.7;
+  let camPitch = 0.48;
+  let camDistance = 11;
+  let dragging = false;
+  let lastMouseX = 0;
+  let lastMouseY = 0;
+
+  renderer.domElement.style.cursor = "grab";
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    dragging = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    renderer.domElement.setPointerCapture(e.pointerId);
+    renderer.domElement.style.cursor = "grabbing";
+  });
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastMouseX;
+    const dy = e.clientY - lastMouseY;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    camYaw -= dx * 0.008;
+    camPitch -= dy * 0.006;
+    camPitch = Math.max(0.12, Math.min(1.35, camPitch));
+  });
+  renderer.domElement.addEventListener("pointerup", () => {
+    dragging = false;
+    renderer.domElement.style.cursor = "grab";
+  });
+  renderer.domElement.addEventListener("pointercancel", () => {
+    dragging = false;
+    renderer.domElement.style.cursor = "grab";
+  });
+  renderer.domElement.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    camDistance *= Math.exp(e.deltaY * 0.001);
+    camDistance = Math.max(3, Math.min(35, camDistance));
+  }, { passive: false });
 
   addEventListener("keydown", (e) => {
     keys[e.code] = true;
@@ -142,8 +181,7 @@ try {
 
       if (x || z) player.rotation.y = Math.atan2(x, z);
 
-      camera.position.set(player.position.x + 6, 5, player.position.z + 7);
-      camera.lookAt(player.position.x, 1, player.position.z);
+      updateCamera(player);
       return;
     }
 
@@ -162,12 +200,22 @@ try {
     car.position.z += Math.cos(heading) * speed * dt;
     car.rotation.y = heading;
 
+    updateCamera(car);
+  }
+
+  function updateCamera(targetObject) {
+    const targetY = inCar ? 0.8 : 1.0;
+    const horizontal = Math.cos(camPitch) * camDistance;
     camera.position.set(
-      car.position.x - Math.sin(heading) * 9,
-      5.5,
-      car.position.z - Math.cos(heading) * 9
+      targetObject.position.x + Math.sin(camYaw) * horizontal,
+      targetObject.position.y + targetY + Math.sin(camPitch) * camDistance,
+      targetObject.position.z + Math.cos(camYaw) * horizontal
     );
-    camera.lookAt(car.position.x, 0.8, car.position.z);
+    camera.lookAt(
+      targetObject.position.x,
+      targetObject.position.y + targetY,
+      targetObject.position.z
+    );
   }
 
   const clock = new T.Clock();
