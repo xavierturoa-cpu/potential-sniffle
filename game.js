@@ -1,166 +1,55 @@
 (() => {
-  "use strict";
-  const error = document.getElementById("error");
-  try {
-    if (!window.THREE) throw new Error("Three.js failed to load.");
-    const T = THREE;
-
-    const scene = new T.Scene();
-    scene.background = new T.Color(0x72b7e8);
-    scene.fog = new T.Fog(0x72b7e8, 160, 1200);
-
-    const camera = new T.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 3000);
-    const renderer = new T.WebGLRenderer({ antialias: true });
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    document.body.appendChild(renderer.domElement);
-
-    scene.add(new T.HemisphereLight(0xffffff, 0x446633, 2));
-    scene.add(new T.AmbientLight(0xffffff, 1));
-    const sun = new T.DirectionalLight(0xffffff, 1.8);
-    sun.position.set(50, 100, 30);
-    scene.add(sun);
-
-    const roadMat = new T.MeshBasicMaterial({color:0x303030});
-    const grassMat = new T.MeshBasicMaterial({color:0x4f9348});
-    const white = new T.MeshBasicMaterial({color:0xffffff});
-    const yellow = new T.MeshBasicMaterial({color:0xf2cf35});
-    const dark = new T.MeshBasicMaterial({color:0x171717});
-    const glass = new T.MeshBasicMaterial({color:0x8cc9dc, transparent:true, opacity:0.72});
-
-    // Flat infinite highway.
-    const roadParts = [], grassParts = [], markings = [];
-    const SEG = 140, COUNT = 24;
-    for (let i=0;i<COUNT;i++) {
-      const z=-i*SEG;
-      const road=new T.Mesh(new T.PlaneGeometry(18,SEG+2),roadMat); road.rotation.x=-Math.PI/2; road.position.z=z; scene.add(road); roadParts.push(road);
-      const grass=new T.Mesh(new T.PlaneGeometry(220,SEG+2),grassMat); grass.rotation.x=-Math.PI/2; grass.position.y=-0.08; grass.position.z=z; scene.add(grass); grassParts.push(grass);
-      for(const x of [-8.8,8.8]) { const e=new T.Mesh(new T.BoxGeometry(0.16,0.04,SEG),yellow); e.position.set(x,0.04,z); scene.add(e); markings.push(e); }
-      const dash=new T.Mesh(new T.BoxGeometry(0.12,0.035,7),white); dash.position.set(0,0.03,z); scene.add(dash); markings.push(dash);
-    }
-
-    function makeCar(color, scale=1) {
-      const g=new T.Group();
-      const body=new T.Mesh(new T.BoxGeometry(2.25,0.65,4.2),new T.MeshBasicMaterial({color})); body.position.y=0.65; g.add(body);
-      const hood=new T.Mesh(new T.BoxGeometry(2.05,0.25,1.35),new T.MeshBasicMaterial({color})); hood.position.set(0,1.0,1.15); g.add(hood);
-      const cab=new T.Mesh(new T.BoxGeometry(1.55,0.7,1.9),glass); cab.position.set(0,1.25,-0.15); g.add(cab);
-      for(const x of [-1.15,1.15]) for(const z of [-1.45,1.45]) { const w=new T.Mesh(new T.CylinderGeometry(0.36,0.36,0.28,14),dark); w.rotation.z=Math.PI/2; w.position.set(x,0.35,z); g.add(w); }
-      const lights=new T.Mesh(new T.BoxGeometry(1.65,0.16,0.08),new T.MeshBasicMaterial({color:0xffeeee})); lights.position.set(0,0.75,2.12); g.add(lights);
-      g.scale.setScalar(scale); return g;
-    }
-
-    const skins=[0xdd3333,0x222222,0xffffff,0x1677cc,0xff8a00,0x22aa55];
-    let skinIndex=0;
-    let modIndex=0;
-    const mods=[
-      {name:"Stock",power:1.00,handling:1.00},
-      {name:"Sport",power:1.18,handling:1.12},
-      {name:"Race",power:1.35,handling:1.22}
-    ];
-    const player=makeCar(skins[skinIndex]);
-    player.position.set(-4.5,0,5);
-    scene.add(player);
-
-    // First-person interior: dashboard, wheel and windshield frame.
-    const interior=new T.Group();
-    const dash=new T.Mesh(new T.BoxGeometry(2.2,0.35,0.75),dark); dash.position.set(0,0.65,1.15); interior.add(dash);
-    const wheel=new T.Mesh(new T.TorusGeometry(0.38,0.07,10,24),dark); wheel.position.set(0,0.82,0.72); wheel.rotation.x=Math.PI/2; interior.add(wheel);
-    const pillarL=new T.Mesh(new T.BoxGeometry(0.09,1.5,0.1),dark); pillarL.position.set(-0.82,1.45,-0.05); interior.add(pillarL);
-    const pillarR=pillarL.clone(); pillarR.position.x=0.82; interior.add(pillarR);
-    interior.visible=false; player.add(interior);
-
-    // Race bots. They are actual competitors, not ordinary traffic.
-    const bots=[];
-    const botColors=[0x1677cc,0xffffff,0xff8a00,0x22aa55,0x8b44cc];
-    for(let i=0;i<5;i++) {
-      const bot=makeCar(botColors[i]);
-      bot.position.set(i%2?-4.5:4.5,0,-70-i*75);
-      bot.userData.baseSpeed=92+i*4+Math.random()*8;
-      bot.userData.progress=0;
-      scene.add(bot); bots.push(bot);
-    }
-
-    // Towns remain part of the highway, but are visually simple race checkpoints.
-    const towns=[];
-    const townNames=["Riverdale","Pinecreek","Greenville","Cedarvale","Kingston","Rosewood"];
-    function addTown(z,i){
-      const g=new T.Group();
-      for(let j=0;j<8;j++){
-        const side=j%2?-1:1;
-        const h=3+(j%3);
-        const b=new T.Mesh(new T.BoxGeometry(4,h,5),new T.MeshBasicMaterial({color:[0xb96e4b,0xd8c19f,0xaaaaaa,0xc9d1d9][j%4]}));
-        b.position.set(side*(13+(j%3)*3),h/2,-j*42); g.add(b);
-      }
-      const canvas=document.createElement("canvas"); canvas.width=700; canvas.height=180;
-      const ctx=canvas.getContext("2d"); ctx.fillStyle="#16529a"; ctx.fillRect(0,0,700,180); ctx.fillStyle="#fff"; ctx.font="bold 72px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(townNames[i%townNames.length],350,90);
-      const sign=new T.Mesh(new T.PlaneGeometry(7,1.8),new T.MeshBasicMaterial({map:new T.CanvasTexture(canvas),side:T.DoubleSide})); sign.position.set(11,4,-15); g.add(sign);
-      g.position.z=z; scene.add(g); towns.push(g);
-    }
-    for(let i=0;i<6;i++) addTown(-1700-i*1500,i);
-
-    const keys={};
-    let speed=100, distance=0, playerX=-4.5, cameraMode=0, limit=100;
-    let nitro=100, crashed=false, paused=false, raceTime=0;
-    const clock=new T.Clock();
-
-    addEventListener("keydown",e=>{
-      keys[e.code]=true;
-      if(["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
-      if(e.code==="KeyV"){cameraMode=1-cameraMode; interior.visible=cameraMode===1;}
-      if(e.code==="KeyC") keys.KeyC=!keys.KeyC;
-      if(e.code==="KeyM"){modIndex=(modIndex+1)%mods.length;}
-      if(e.code>="Digit1"&&e.code<="Digit6"){skinIndex=Number(e.code.slice(-1))-1; player.getObjectByName("body")?.material.color.setHex(skins[skinIndex]); player.traverse(o=>{if(o.isMesh&&o.geometry&&o.geometry.parameters&&o.geometry.parameters.width===2.25)o.material.color.setHex(skins[skinIndex]);});}
-      if(e.code==="KeyR") reset();
-      if(e.code==="Escape"||e.code==="KeyP"){paused=!paused;}
-    });
-    addEventListener("keyup",e=>keys[e.code]=false);
-
-    function setPlayerSkin(){
-      player.traverse(o=>{if(o.isMesh&&o.material&&o.material.color&&o!==wheel){ if(o.geometry&&o.geometry.parameters&&(o.geometry.parameters.width===2.25||o.geometry.parameters.width===2.05)) o.material.color.setHex(skins[skinIndex]); }});
-    }
-    function reset(){speed=100;distance=0;playerX=-4.5;nitro=100;crashed=false;raceTime=0;player.position.set(-4.5,0,5);bots.forEach((b,i)=>{b.position.set(i%2?-4.5:4.5,0,-70-i*75);b.userData.progress=0;});setPlayerSkin();}
-
-    function updateHud(){
-      let hud=document.getElementById("gameHud");
-      if(!hud){hud=document.createElement("div");hud.id="gameHud";hud.style.cssText="position:fixed;left:18px;top:16px;color:#fff;font:700 18px Arial;text-shadow:2px 2px 4px #000;z-index:20;line-height:1.45;pointer-events:none";document.body.appendChild(hud);}
-      const sorted=[{p:distance,id:"YOU"},...bots.map((b,i)=>({p:b.userData.progress,id:"BOT "+(i+1)}))].sort((a,b)=>b.p-a.p); const pos=sorted.findIndex(x=>x.id==="YOU")+1;
-      const cruise=keys.KeyC?"ON":"OFF";
-      hud.innerHTML=`<b>${Math.round(speed)} km/h</b> &nbsp; Limit ${limit}<br>Position: ${pos}/6 &nbsp; Race: ${raceTime.toFixed(1)}s<br>Distance: ${(distance/1000).toFixed(2)} km<br>Skin: ${skinIndex+1}/6 &nbsp; Mod: ${mods[modIndex].name}<br>Nitro: ${Math.round(nitro)}% &nbsp; Cruise: ${cruise}<br><small>WASD/Arrows drive • Shift nitro • V view • C cruise • M mod • 1-6 skins • P pause • R reset</small>`;
-    }
-
-    function gameLoop(){
-      const dt=Math.min(clock.getDelta(),0.05);
-      if(paused){renderer.render(scene,camera);return;}
-      raceTime+=dt;
-      const mod=mods[modIndex];
-      const steer=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
-      playerX+=steer*(8*mod.handling)*dt; playerX=Math.max(-7.2,Math.min(7.2,playerX)); player.position.x+=(playerX-player.position.x)*Math.min(1,dt*12); player.rotation.z=-steer*0.08;
-      if(keys.ShiftLeft||keys.ShiftRight){if(nitro>0){speed+=220*dt;nitro=Math.max(0,nitro-32*dt);}} else nitro=Math.min(100,nitro+5*dt);
-      if(keys.KeyC) speed+=(Math.min(120,speed)-speed)*Math.min(1,dt*3);
-      else {if(keys.KeyW||keys.ArrowUp)speed+=140*mod.power*dt; else speed-=1.2*dt;if(keys.KeyS||keys.ArrowDown)speed-=190*dt;}
-      speed=Math.max(0,Math.min(160,speed));
-      const move=speed*dt*0.35;
-      [...roadParts,...grassParts,...markings].forEach(o=>{o.position.z+=move;if(o.position.z>100)o.position.z-=SEG*COUNT;});
-      towns.forEach(t=>{t.position.z+=move;if(t.position.z>120)t.position.z-=9000;});
-      // Bots move relative to the player and fight for position.
-      bots.forEach((b,i)=>{
-        const target=b.userData.baseSpeed+(Math.sin(raceTime*0.7+i)*5);
-        const rel=move+(target*dt*0.35);
-        b.position.z+=rel; b.userData.progress+=target*dt/3.6;
-        if(b.position.z>100){b.position.z-=2600;b.userData.progress+=2600;}
-        if(b.position.z<-2600)b.position.z+=2600;
-        if(Math.abs(b.position.z-player.position.z)<3.1&&Math.abs(b.position.x-player.position.x)<2.0){speed=Math.max(0,speed-70*dt);player.rotation.z+=steer*0.3;}
-      });
-      distance+=speed*dt/3.6;
-      // Posted limits cycle on open highway; racing does not hard-cap the player.
-      const segment=Math.floor(distance/900)%6; limit=[90,100,110,120,100,110][segment];
-      if(cameraMode===0){camera.position.x+=(player.position.x*0.45-camera.position.x)*Math.min(1,dt*6);camera.position.y=5.5;camera.position.z=14;camera.lookAt(player.position.x,0.8,-90);}
-      else {camera.position.set(player.position.x,1.45,3.0);camera.lookAt(player.position.x,1.35,-100);}
-      updateHud(); renderer.render(scene,camera);
-    }
-
-    reset();
-    addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
-    renderer.setAnimationLoop(()=>{try{gameLoop();}catch(e){error.style.display="block";error.textContent="GAME ERROR\n\n"+(e.stack||e);renderer.setAnimationLoop(null);}});
-  } catch(e) { error.style.display="block"; error.textContent="GAME ERROR\n\n"+(e.stack||e); }
+"use strict";
+const error=document.getElementById("error");
+try{
+if(!window.THREE) throw new Error("Three.js failed to load.");
+const T=THREE;
+const scene=new T.Scene(); scene.background=new T.Color(0x72b7e8); scene.fog=new T.Fog(0x72b7e8,180,1200);
+const camera=new T.PerspectiveCamera(70,innerWidth/innerHeight,.1,2500);
+const renderer=new T.WebGLRenderer({antialias:true}); renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); document.body.appendChild(renderer.domElement);
+scene.add(new T.HemisphereLight(0xffffff,0x446633,2)); scene.add(new T.AmbientLight(0xffffff,1));
+const sun=new T.DirectionalLight(0xffffff,1.7); sun.position.set(50,100,30); scene.add(sun);
+const grassMat=new T.MeshBasicMaterial({color:0x4f9348}); const asphaltMat=new T.MeshBasicMaterial({color:0x555555}); const white=new T.MeshBasicMaterial({color:0xffffff}); const dark=new T.MeshBasicMaterial({color:0x171717}); const rampMat=new T.MeshBasicMaterial({color:0x9b9b9b});
+const ground=new T.Mesh(new T.PlaneGeometry(900,900),grassMat); ground.rotation.x=-Math.PI/2; ground.position.y=-.12; scene.add(ground);
+const pad=new T.Mesh(new T.BoxGeometry(130,.18,130),asphaltMat); pad.position.y=-.02; scene.add(pad);
+// Simple playground markings
+for(let i=-60;i<=60;i+=20){const line=new T.Mesh(new T.BoxGeometry(.12,.02,130),white);line.position.set(i,.09,0);scene.add(line);}
+for(let i=-60;i<=60;i+=20){const line=new T.Mesh(new T.BoxGeometry(130,.02,.12),white);line.position.set(0,.09,i);scene.add(line);}
+function makeCar(color){const g=new T.Group();
+const body=new T.Mesh(new T.BoxGeometry(2.25,.65,4.2),new T.MeshBasicMaterial({color})); body.name="body"; body.position.y=.65; g.add(body);
+const hood=new T.Mesh(new T.BoxGeometry(2.05,.25,1.35),new T.MeshBasicMaterial({color})); hood.name="hood"; hood.position.set(0,1,1.15); g.add(hood);
+const cab=new T.Mesh(new T.BoxGeometry(1.55,.7,1.9),new T.MeshBasicMaterial({color:0x8cc9dc,transparent:true,opacity:.72})); cab.position.set(0,1.25,-.15); g.add(cab);
+for(const x of[-1.15,1.15])for(const z of[-1.45,1.45]){const w=new T.Mesh(new T.CylinderGeometry(.36,.36,.28,14),dark);w.rotation.z=Math.PI/2;w.position.set(x,.35,z);g.add(w);}
+return g;}
+const skins=[0xdd3333,0x222222,0xffffff,0x1677cc,0xff8a00,0x22aa55]; let skinIndex=0;
+const player=makeCar(skins[0]); player.position.set(0,0,35); scene.add(player);
+// First-person interior kept from the original car.
+const interior=new T.Group(); const dash=new T.Mesh(new T.BoxGeometry(2.2,.35,.75),dark);dash.position.set(0,.65,1.15);interior.add(dash);const wheel=new T.Mesh(new T.TorusGeometry(.38,.07,10,24),dark);wheel.position.set(0,.82,.72);wheel.rotation.x=Math.PI/2;interior.add(wheel);const p1=new T.Mesh(new T.BoxGeometry(.09,1.5,.1),dark);p1.position.set(-.82,1.45,-.05);interior.add(p1);const p2=p1.clone();p2.position.x=.82;interior.add(p2);interior.visible=false;player.add(interior);
+// Ramps and playground obstacles.
+function ramp(x,z,rot=0,scale=1){const g=new T.Group();const mesh=new T.Mesh(new T.BoxGeometry(7,2.5,12),rampMat);mesh.rotation.x=-.28;mesh.position.y=1.15;g.add(mesh);g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);return g;}
+function wall(x,z,w,d){const m=new T.Mesh(new T.BoxGeometry(w,1.2,d),rampMat);m.position.set(x,.6,z);scene.add(m);}
+function cone(x,z){const m=new T.Mesh(new T.ConeGeometry(.35,1.2,12),new T.MeshBasicMaterial({color:0xff7a00}));m.position.set(x,.6,z);scene.add(m);}
+ramp(-38,-30,0); ramp(38,-5,Math.PI,1); ramp(-35,28,Math.PI/2,.9); ramp(35,38,-Math.PI/2,.9);
+wall(-25,0,1.2,25); wall(25,10,1.2,25); wall(0,-48,30,1.2); wall(0,48,30,1.2);
+for(let i=0;i<14;i++)cone(-15+(i%7)*5,-12+Math.floor(i/7)*8);
+// Two simple AI playground cars.
+const bots=[]; for(let i=0;i<3;i++){const b=makeCar([0x1677cc,0xffffff,0xff8a00][i]);b.position.set(-18+i*18,-0.0,-35-i*10);b.userData.phase=Math.random()*6.28;b.userData.speed=7+i*1.5;scene.add(b);bots.push(b);}
+const keys={}; let speed=0,heading=0,steerVel=0,drift=0,paused=false,cameraMode=0,nitro=100;
+addEventListener("keydown",e=>{keys[e.code]=true;if(["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code))e.preventDefault();if(e.code==="KeyV"){cameraMode=1-cameraMode;interior.visible=cameraMode===1;}if(e.code==="KeyR")reset();if(e.code==="KeyP"||e.code==="Escape")paused=!paused;if(e.code>="Digit1"&&e.code<="Digit6"){skinIndex=Number(e.code.slice(-1))-1;setSkin();}});addEventListener("keyup",e=>keys[e.code]=false);
+function setSkin(){player.traverse(o=>{if(o.isMesh&&o.name!==""&&o.material&&o.material.color&&(o.name==="body"||o.name==="hood"))o.material.color.setHex(skins[skinIndex]);});}
+function reset(){speed=0;heading=0;steerVel=0;drift=0;nitro=100;player.position.set(0,0,35);player.rotation.set(0,0,0);setSkin();}
+function updateHud(){let h=document.getElementById("gameHud");if(!h){h=document.createElement("div");h.id="gameHud";h.style.cssText="position:fixed;left:18px;top:16px;color:#fff;font:700 18px Arial;text-shadow:2px 2px 4px #000;z-index:20;line-height:1.5;pointer-events:none";document.body.appendChild(h);}h.innerHTML=`<b>${Math.round(Math.abs(speed)*3.6)} km/h</b><br>Drift: ${drift.toFixed(0)}°<br>Nitro: ${Math.round(nitro)}%<br><small>WASD / Arrows drive • Space handbrake drift • Shift nitro • V view • 1-6 skins • R reset • P pause</small>`;}
+const clock=new T.Clock();
+function gameLoop(){const dt=Math.min(clock.getDelta(),.05);if(paused){renderer.render(scene,camera);return;}
+const throttle=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);const steer=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);const hand=!!keys.Space;
+const accel=throttle>0?30:throttle<0?-42:-8; speed+=accel*dt; if(keys.ShiftLeft||keys.ShiftRight){if(nitro>0){speed+=55*dt;nitro-=35*dt;}}else nitro=Math.min(100,nitro+10*dt);speed=Math.max(-12,Math.min(52,speed));
+const grip=hand?1.2:4.5; const turnRate=(1.4+Math.min(Math.abs(speed)/18,1.8))*(hand?1.45:1); heading+=steer*turnRate*dt*(speed>=0?1:-1); const slip=hand&&Math.abs(speed)>7?0.62:0.18; const forwardX=Math.sin(heading),forwardZ=Math.cos(heading); const sideX=Math.cos(heading),sideZ=-Math.sin(heading);
+player.userData.vx=player.userData.vx||0;player.userData.vz=player.userData.vz||0; const targetVX=forwardX*speed, targetVZ=forwardZ*speed; const blend=Math.min(1,dt*(slip<.3?grip:grip*.45)); player.userData.vx+=(targetVX-player.userData.vx)*blend;player.userData.vz+=(targetVZ-player.userData.vz)*blend;
+player.position.x+=player.userData.vx*dt;player.position.z+=player.userData.vz*dt; player.position.x=Math.max(-63,Math.min(63,player.position.x));player.position.z=Math.max(-63,Math.min(63,player.position.z));player.rotation.y=heading;player.rotation.z=steer*(hand?-.22:-.06);
+const lateral=Math.abs(player.userData.vx*sideX+player.userData.vz*sideZ);drift=Math.min(90,lateral*7+(hand&&Math.abs(speed)>7?35:0));
+for(const b of bots){b.userData.phase+=dt*b.userData.speed*.08;b.position.x+=Math.sin(b.userData.phase)*dt*5;b.position.z+=Math.cos(b.userData.phase)*dt*5;b.rotation.y=Math.atan2(Math.cos(b.userData.phase),Math.sin(b.userData.phase));if(b.position.x>58)b.position.x=-58;if(b.position.x<-58)b.position.x=58;if(b.position.z>58)b.position.z=-58;if(b.position.z<-58)b.position.z=58;}
+if(cameraMode===0){camera.position.x+=(player.position.x*1.0-camera.position.x)*Math.min(1,dt*5);camera.position.y=8;camera.position.z=player.position.z+14;camera.lookAt(player.position.x,0,-20);}else{camera.position.set(player.position.x,1.45,player.position.z+1.8);camera.lookAt(player.position.x,1.35,player.position.z-30);}
+updateHud();renderer.render(scene,camera);}
+reset();addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});renderer.setAnimationLoop(()=>{try{gameLoop();}catch(e){error.style.display="block";error.textContent="GAME ERROR\n\n"+(e.stack||e);renderer.setAnimationLoop(null);}});
+}catch(e){error.style.display="block";error.textContent="GAME ERROR\n\n"+(e.stack||e);}
 })();
