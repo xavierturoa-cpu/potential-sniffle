@@ -19,37 +19,47 @@ try {
   document.body.appendChild(renderer.domElement);
 
   // Auto-generated flat land chunks.
-  const terrainChunks = new Map();
-  const CHUNK_SIZE = 100;
-  const TERRAIN_RADIUS = 3;
+  const terrainChunks = [];
+  const CHUNK_SIZE = 1000;
+  const TERRAIN_RADIUS = 4;
+  let terrainCenterX = Infinity;
+  let terrainCenterZ = Infinity;
 
-  function makeTerrainChunk(cx, cz) {
-    const key = cx + "," + cz;
-    if (terrainChunks.has(key)) return;
-
+  function createTerrainChunk() {
     const geometry = new T.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
     geometry.rotateX(-Math.PI / 2);
     const mesh = new T.Mesh(
       geometry,
       new T.MeshBasicMaterial({ color: 0x4d963f, side: T.DoubleSide })
     );
-    mesh.position.set(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE);
     scene.add(mesh);
-    terrainChunks.set(key, mesh);
+    terrainChunks.push(mesh);
+    return mesh;
   }
 
   function updateTerrainAround(x, z) {
     const centerX = Math.floor(x / CHUNK_SIZE);
     const centerZ = Math.floor(z / CHUNK_SIZE);
+    if (centerX === terrainCenterX && centerZ === terrainCenterZ) return;
+    terrainCenterX = centerX;
+    terrainCenterZ = centerZ;
+
+    const needed = (TERRAIN_RADIUS * 2 + 1) ** 2;
+    while (terrainChunks.length < needed) createTerrainChunk();
+
+    let index = 0;
     for (let dx = -TERRAIN_RADIUS; dx <= TERRAIN_RADIUS; dx++) {
       for (let dz = -TERRAIN_RADIUS; dz <= TERRAIN_RADIUS; dz++) {
-        makeTerrainChunk(centerX + dx, centerZ + dz);
+        terrainChunks[index++].position.set(
+          (centerX + dx) * CHUNK_SIZE,
+          0,
+          (centerZ + dz) * CHUNK_SIZE
+        );
       }
     }
   }
 
   updateTerrainAround(0, 0);
-  let terrainUpdateTimer = 0;
 
   // Lakes.
   function makeLake(x, z, w, d) {
@@ -538,8 +548,16 @@ try {
       return;
     }
 
+    if (e.code === "KeyE" && inPlane) {
+      inPlane = false;
+      player.visible = true;
+      player.position.set(planeVehicle.position.x, Math.max(0, planeVehicle.position.y - 1), planeVehicle.position.z);
+      sfx("exit");
+      return;
+    }
+
     if (e.code === "KeyE" && !inCar && !insideHouse && Math.hypot(player.position.x - planeVehicle.position.x, player.position.z - planeVehicle.position.z) < 5) {
-      inPlane = !inPlane;
+      inPlane = true;
       updateTerrainAround(inPlane ? planeVehicle.position.x : (inCar ? car.position.x : player.position.x), inPlane ? planeVehicle.position.z : (inCar ? car.position.z : player.position.z));
 
     if (inPlane) {        planeVehicle.position.set(player.position.x, Math.max(1.5, player.position.y + 0.8), player.position.z);
@@ -632,6 +650,9 @@ try {
       const forward = new T.Vector3(0, 0, -1).applyEuler(planeVehicle.rotation).normalize();
       planeVehicle.position.addScaledVector(forward, planeSpeed * dt);
       planeVehicle.position.y = Math.max(0.5, planeVehicle.position.y);
+
+      // Keep a huge rolling ground centered around whatever the plane is over.
+      updateTerrainAround(planeVehicle.position.x, planeVehicle.position.z);
 
       updateCamera(planeVehicle);
       return;
