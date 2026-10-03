@@ -8,9 +8,10 @@ try {
   const T = window.THREE;
 
   const scene = new T.Scene();
-  scene.background = new T.Color(0x87ceeb);
+  scene.background = new T.Color(0x79bff2);
+  scene.fog = new T.Fog(0x79bff2, 90, 260);
 
-  const camera = new T.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 500);
+  const camera = new T.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 700);
   camera.position.set(8, 7, 10);
 
   const renderer = new T.WebGLRenderer({ antialias: true });
@@ -18,21 +19,68 @@ try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
 
-  scene.add(new T.HemisphereLight(0xffffff, 0x557755, 2));
+  const sun = new T.DirectionalLight(0xffffff, 2.2);
+  sun.position.set(-80, 120, 60);
+  scene.add(sun);
+  scene.add(new T.HemisphereLight(0xbfe9ff, 0x35502f, 1.2));
 
-  // Just a simple plane.
-  const plane = new T.Mesh(
-    new T.PlaneGeometry(200, 200),
+  // A huge spherical world gives the map a visible round horizon.
+  const worldSphere = new T.Mesh(
+    new T.SphereGeometry(145, 64, 32),
     new T.MeshBasicMaterial({ color: 0x4d963f })
   );
-  plane.rotation.x = -Math.PI / 2;
-  scene.add(plane);
+  worldSphere.position.set(0, -145, 0);
+  scene.add(worldSphere);
+
+  // Flat town surface tangent to the spherical world.
+  const ground = new T.Mesh(
+    new T.PlaneGeometry(210, 210),
+    new T.MeshLambertMaterial({ color: 0x4d963f })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+
+  // Atmospheric sky dome.
+  const sky = new T.Mesh(
+    new T.SphereGeometry(330, 32, 16),
+    new T.MeshBasicMaterial({ color: 0x8fd3ff, side: T.BackSide, fog: false })
+  );
+  scene.add(sky);
+
+  // Sun and moon.
+  const sunBall = new T.Mesh(
+    new T.SphereGeometry(6, 24, 16),
+    new T.MeshBasicMaterial({ color: 0xfff1a8 })
+  );
+  sunBall.position.set(-120, 120, -170);
+  scene.add(sunBall);
+
+  const moonBall = new T.Mesh(
+    new T.SphereGeometry(4.5, 24, 16),
+    new T.MeshBasicMaterial({ color: 0xe8ecff })
+  );
+  moonBall.position.set(120, 90, -150);
+  scene.add(moonBall);
+
+  // Lakes.
+  function makeLake(x, z, w, d) {
+    const lake = new T.Mesh(
+      new T.CircleGeometry(1, 32),
+      new T.MeshBasicMaterial({ color: 0x3c9fd8 })
+    );
+    lake.scale.set(w, d, 1);
+    lake.rotation.x = -Math.PI / 2;
+    lake.position.set(x, 0.035, z);
+    scene.add(lake);
+  }
 
   // World collision boxes. Buildings and trees register solid rectangles here.
   const colliders = [];
+  const interiorColliders = [];
   const houseEntrances = [];
   const houseInteriors = [];
   const bots = [];
+  const lakes = [];
 
   function addCollider(x, z, halfX, halfZ) {
     colliders.push({ x, z, halfX, halfZ });
@@ -47,8 +95,9 @@ try {
   }
 
   function canMoveTo(x, z, radius) {
-    if (Math.abs(x) > 98 - radius || Math.abs(z) > 98 - radius) return false;
-    return !colliders.some(box => circleHitsCollider(x, z, radius, box));
+    if (Math.abs(x) > 102 - radius || Math.abs(z) > 102 - radius) return false;
+    const active = insideHouse ? interiorColliders : colliders;
+    return !active.some(box => circleHitsCollider(x, z, radius, box));
   }
 
   function tryMove(object, dx, dz, radius) {
@@ -136,17 +185,23 @@ try {
     interior.position.set(x, 0, z);
     interior.visible = false;
     scene.add(interior);
-    houseInteriors.push({
-      interior,
-      entrance: houseEntrances[houseEntrances.length - 1]
-    });
-    // Leave a doorway gap in the front wall by making the collision split around it.
-    colliders.pop();
+
+    // Exterior wall collision with a real doorway gap.
     const gap = 1.15;
-    const side = (width / 2 + 0.15 - gap / 2);
-    addCollider(x - (width / 4 + gap / 2), z, side, depth / 2 + 0.15);
-    addCollider(x + (width / 4 + gap / 2), z, side, depth / 2 + 0.15);
-    houseEntrances.push({ x, z: z + depth / 2 + 1.5, insideX: x, insideZ: z + depth / 2 - 2.2, width, depth });
+    const sideWidth = Math.max(0.5, width / 2 - gap / 2);
+    addCollider(x - (gap / 2 + sideWidth / 2), z, sideWidth / 2, depth / 2 + 0.15);
+    addCollider(x + (gap / 2 + sideWidth / 2), z, sideWidth / 2, depth / 2 + 0.15);
+
+    const entrance = { x, z: z + depth / 2 + 1.5, insideX: x, insideZ: z + depth / 2 - 2.2, width, depth };
+    houseEntrances.push(entrance);
+    houseInteriors.push({ interior, entrance });
+
+    // Furniture collision while inside.
+    interiorColliders.push(
+      { x, z: z - depth / 2 + 0.4, halfX: width / 2 - 0.3, halfZ: 0.25 },
+      { x, z: z + 1.2, halfX: Math.min(1.7, width / 2 - 1), halfZ: 0.55 },
+      { x: x + width / 2 - 1.3, z: z + depth / 2 - 1.5, halfX: 1.2, halfZ: 0.85 }
+    );
   }
 
   function makeTree(x, z, scale = 1) {
@@ -218,6 +273,43 @@ try {
     makeBot(8, 8, 0xe67e22);
     makeBot(-38, 12, 0x3498db);
     makeBot(38, -12, 0xe74c3c);
+
+    makeLake(-62, 0, 14, 9);
+    makeLake(62, 0, 12, 8);
+  }
+
+  function makePlane() {
+    const plane = new T.Group();
+
+    const fuselage = new T.Mesh(
+      new T.BoxGeometry(1.2, 0.8, 4.8),
+      new T.MeshBasicMaterial({ color: 0xf1f1f1 })
+    );
+    fuselage.position.y = 0.2;
+    plane.add(fuselage);
+
+    const wings = new T.Mesh(
+      new T.BoxGeometry(7, 0.16, 1.1),
+      new T.MeshBasicMaterial({ color: 0xdddddd })
+    );
+    wings.position.y = 0.35;
+    plane.add(wings);
+
+    const tail = new T.Mesh(
+      new T.BoxGeometry(0.18, 1.1, 1),
+      new T.MeshBasicMaterial({ color: 0xe53935 })
+    );
+    tail.position.set(0, 0.75, 1.7);
+    plane.add(tail);
+
+    const prop = new T.Mesh(
+      new T.BoxGeometry(0.12, 2.2, 0.12),
+      new T.MeshBasicMaterial({ color: 0x222222 })
+    );
+    prop.position.set(0, 0.2, -2.5);
+    plane.add(prop);
+
+    return plane;
   }
 
   function makeCar() {
@@ -305,12 +397,22 @@ try {
   car.position.set(3, 0, 0);
   scene.add(car);
 
+  const planeVehicle = makePlane();
+  planeVehicle.position.set(0, 1.2, 20);
+  planeVehicle.rotation.y = Math.PI;
+  scene.add(planeVehicle);
+
   const player = makePlayer();
   player.position.set(-2, 0, 0);
   scene.add(player);
 
   let inCar = false;
   let insideHouse = null;
+  let inPlane = false;
+  let planeSpeed = 0;
+  let planePitch = 0;
+  let verticalVelocity = 0;
+  let grounded = true;
   let speed = 0;
 
   function toggleNearestHouse() {
@@ -329,6 +431,8 @@ try {
         if (hi) {
           hi.interior.visible = true;
           player.position.set(h.insideX, 0, h.insideZ);
+          verticalVelocity = 0;
+          grounded = true;
           insideHouse = hi;
           sfx("door");
           return true;
@@ -368,6 +472,10 @@ try {
     } else if (type === "bump") {
       osc.type = "square";
       osc.frequency.setValueAtTime(90, now);
+    } else if (type === "jump") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(360, now + 0.1);
     } else if (type === "door") {
       osc.type = "triangle";
       osc.frequency.setValueAtTime(330, now);
@@ -427,6 +535,28 @@ try {
 
     if (["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) {
       e.preventDefault();
+    }
+
+    if (e.code === "Space" && !inCar && !insideHouse && grounded) {
+      verticalVelocity = 8;
+      grounded = false;
+      sfx("jump");
+      return;
+    }
+
+    if (e.code === "KeyE" && !inCar && !insideHouse && Math.hypot(player.position.x - planeVehicle.position.x, player.position.z - planeVehicle.position.z) < 5) {
+      inPlane = !inPlane;
+      if (inPlane) {
+        planeVehicle.position.set(player.position.x, Math.max(1.5, player.position.y + 0.8), player.position.z);
+        player.visible = false;
+        planeSpeed = 0;
+        sfx("enter");
+      } else {
+        player.visible = true;
+        player.position.set(planeVehicle.position.x, Math.max(0, planeVehicle.position.y - 1), planeVehicle.position.z);
+        sfx("exit");
+      }
+      return;
     }
 
     if (e.code === "KeyE" && !inCar && tryEnterHouse()) return;
@@ -489,7 +619,45 @@ try {
   }
 
   function update(dt) {
+    if (inPlane) {
+      const throttle = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+      const turn = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+      const climb = (keys.Space ? 1 : 0) - (keys.ShiftLeft || keys.ShiftRight ? 1 : 0);
+
+      if (throttle > 0) planeSpeed += 18 * dt;
+      else if (throttle < 0) planeSpeed -= 12 * dt;
+      else planeSpeed *= Math.pow(0.25, dt);
+      planeSpeed = Math.max(0, Math.min(65, planeSpeed));
+
+      planeVehicle.rotation.y += turn * 1.4 * dt;
+      planePitch += climb * 0.8 * dt;
+      planePitch *= Math.pow(0.35, dt);
+      planePitch = Math.max(-0.55, Math.min(0.55, planePitch));
+
+      const forward = new T.Vector3(0, 0, -1).applyEuler(planeVehicle.rotation).normalize();
+      planeVehicle.position.addScaledVector(forward, planeSpeed * dt);
+      planeVehicle.position.y = Math.max(1.5, Math.min(110, planeVehicle.position.y));
+      planeVehicle.position.x = Math.max(-100, Math.min(100, planeVehicle.position.x));
+      planeVehicle.position.z = Math.max(-100, Math.min(100, planeVehicle.position.z));
+
+      updateCamera(planeVehicle);
+      return;
+    }
+
     if (!inCar) {
+      // Gravity and jumping.
+      if (!insideHouse) {
+        verticalVelocity -= 22 * dt;
+        player.position.y += verticalVelocity * dt;
+        if (player.position.y <= 0) {
+          player.position.y = 0;
+          verticalVelocity = 0;
+          grounded = true;
+        } else {
+          grounded = false;
+        }
+      }
+
       const x = (keys.KeyA || keys.ArrowLeft ? 1 : 0) - (keys.KeyD || keys.ArrowRight ? 1 : 0);
       const z = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
       const length = Math.hypot(x, z) || 1;
@@ -542,7 +710,7 @@ try {
   }
 
   function updateCamera(targetObject) {
-    const targetY = inCar ? 0.8 : 1.0;
+    const targetY = inPlane ? 0.5 : (inCar ? 0.8 : 1.0);
     const horizontal = Math.cos(camPitch) * camDistance;
     camera.position.set(
       targetObject.position.x + Math.sin(camYaw) * horizontal,
