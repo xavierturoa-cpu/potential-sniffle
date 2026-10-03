@@ -28,6 +28,118 @@ try {
   plane.rotation.x = -Math.PI / 2;
   scene.add(plane);
 
+  // World collision boxes. Buildings and trees register solid rectangles here.
+  const colliders = [];
+  function addCollider(x, z, halfX, halfZ) {
+    colliders.push({ x, z, halfX, halfZ });
+  }
+
+  function circleHitsCollider(x, z, radius, box) {
+    const closestX = Math.max(box.x - box.halfX, Math.min(x, box.x + box.halfX));
+    const closestZ = Math.max(box.z - box.halfZ, Math.min(z, box.z + box.halfZ));
+    const dx = x - closestX;
+    const dz = z - closestZ;
+    return dx * dx + dz * dz < radius * radius;
+  }
+
+  function canMoveTo(x, z, radius) {
+    if (Math.abs(x) > 98 - radius || Math.abs(z) > 98 - radius) return false;
+    return !colliders.some(box => circleHitsCollider(x, z, radius, box));
+  }
+
+  function tryMove(object, dx, dz, radius) {
+    const nx = object.position.x + dx;
+    const nz = object.position.z + dz;
+    let moved = false;
+    if (canMoveTo(nx, object.position.z, radius)) {
+      object.position.x = nx;
+      moved = true;
+    }
+    if (canMoveTo(object.position.x, nz, radius)) {
+      object.position.z = nz;
+      moved = true;
+    }
+    return moved;
+  }
+
+  function makeHouse(x, z, width, depth, color) {
+    const house = new T.Group();
+    const base = new T.Mesh(
+      new T.BoxGeometry(width, 3.2, depth),
+      new T.MeshBasicMaterial({ color })
+    );
+    base.position.y = 1.6;
+    house.add(base);
+
+    const roof = new T.Mesh(
+      new T.ConeGeometry(Math.max(width, depth) * 0.72, 2.2, 4),
+      new T.MeshBasicMaterial({ color: 0x8b3a2e })
+    );
+    roof.position.y = 4.3;
+    roof.rotation.y = Math.PI / 4;
+    house.add(roof);
+
+    // Door and windows are visual only; the whole building is solid.
+    const door = new T.Mesh(new T.BoxGeometry(0.8, 1.5, 0.08), new T.MeshBasicMaterial({ color: 0x5a321f }));
+    door.position.set(0, 0.75, depth / 2 + 0.05);
+    house.add(door);
+    for (const wx of [-width * 0.27, width * 0.27]) {
+      const win = new T.Mesh(new T.BoxGeometry(0.75, 0.75, 0.08), new T.MeshBasicMaterial({ color: 0x8ed8ff }));
+      win.position.set(wx, 1.9, depth / 2 + 0.05);
+      house.add(win);
+    }
+
+    house.position.set(x, 0, z);
+    scene.add(house);
+    addCollider(x, z, width / 2 + 0.15, depth / 2 + 0.15);
+  }
+
+  function makeTree(x, z, scale = 1) {
+    const tree = new T.Group();
+    const trunk = new T.Mesh(
+      new T.CylinderGeometry(0.35 * scale, 0.45 * scale, 2.4 * scale, 8),
+      new T.MeshBasicMaterial({ color: 0x6b4423 })
+    );
+    trunk.position.y = 1.2 * scale;
+    tree.add(trunk);
+    const crown = new T.Mesh(
+      new T.SphereGeometry(1.45 * scale, 12, 10),
+      new T.MeshBasicMaterial({ color: 0x238b45 })
+    );
+    crown.position.y = 2.9 * scale;
+    tree.add(crown);
+    tree.position.set(x, 0, z);
+    scene.add(tree);
+    addCollider(x, z, 0.75 * scale, 0.75 * scale);
+  }
+
+  function buildTown() {
+    // Small town square / streets.
+    const roadMat = new T.MeshBasicMaterial({ color: 0x777777 });
+    const road1 = new T.Mesh(new T.BoxGeometry(18, 0.03, 90), roadMat);
+    road1.position.y = 0.015;
+    scene.add(road1);
+    const road2 = new T.Mesh(new T.BoxGeometry(90, 0.03, 18), roadMat);
+    road2.position.y = 0.02;
+    scene.add(road2);
+
+    makeHouse(-30, -30, 10, 10, 0xd6a36a);
+    makeHouse(30, -30, 12, 9, 0xc97b63);
+    makeHouse(-30, 30, 11, 10, 0x9ccf8b);
+    makeHouse(30, 30, 10, 12, 0xe0c477);
+    makeHouse(-45, 0, 9, 12, 0xb8a1d9);
+    makeHouse(45, 0, 9, 12, 0xd28b8b);
+
+    const treeSpots = [
+      [-15,-38,1], [15,-38,1.1], [-15,38,1], [15,38,1.15],
+      [-42,-18,0.9], [42,-18,1], [-42,18,1], [42,18,0.9],
+      [-10,-12,0.75], [12,-12,0.8], [-12,12,0.85], [12,12,0.75],
+      [-55,-45,1.2], [55,-45,1.2], [-55,45,1.15], [55,45,1.2],
+      [-70,-20,1], [70,-20,1], [-70,20,1.1], [70,20,1]
+    ];
+    treeSpots.forEach(([x,z,s]) => makeTree(x,z,s));
+  }
+
   function makeCar() {
     const car = new T.Group();
 
@@ -106,6 +218,8 @@ try {
 
     return player;
   }
+
+  buildTown();
 
   const car = makeCar();
   car.position.set(3, 0, 0);
@@ -207,8 +321,7 @@ try {
       const moveX = (right.x * x + forward.x * (-z)) / length;
       const moveZ = (right.z * x + forward.z * (-z)) / length;
 
-      player.position.x += moveX * 7 * dt;
-      player.position.z += moveZ * 7 * dt;
+      tryMove(player, moveX * 7 * dt, moveZ * 7 * dt, 0.55);
 
       if (x || z) player.rotation.y = Math.atan2(moveX, moveZ);
 
@@ -234,8 +347,8 @@ try {
 
     heading = camAngle + steer * 0.45 * (speed >= 0 ? 1 : -1);
 
-    car.position.x += Math.sin(heading) * speed * dt;
-    car.position.z += Math.cos(heading) * speed * dt;
+    const moved = tryMove(car, Math.sin(heading) * speed * dt, Math.cos(heading) * speed * dt, 1.25);
+    if (!moved) speed *= -0.18;
     car.rotation.y = heading;
 
     updateCamera(car);
