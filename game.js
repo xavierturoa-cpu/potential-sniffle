@@ -176,10 +176,21 @@ try {
       const z = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
       const length = Math.hypot(x, z) || 1;
 
-      player.position.x += (x / length) * 7 * dt;
-      player.position.z += (z / length) * 7 * dt;
+      // Movement is relative to the camera's horizontal direction.
+      const forward = new T.Vector3();
+      camera.getWorldDirection(forward);
+      forward.y = 0;
+      forward.normalize();
 
-      if (x || z) player.rotation.y = Math.atan2(x, z);
+      const right = new T.Vector3(forward.z, 0, -forward.x);
+
+      const moveX = (right.x * x + forward.x * (-z)) / length;
+      const moveZ = (right.z * x + forward.z * (-z)) / length;
+
+      player.position.x += moveX * 7 * dt;
+      player.position.z += moveZ * 7 * dt;
+
+      if (x || z) player.rotation.y = Math.atan2(moveX, moveZ);
 
       updateCamera(player);
       return;
@@ -188,13 +199,20 @@ try {
     const throttle = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
     const steer = (keys.KeyA || keys.ArrowLeft ? 1 : 0) - (keys.KeyD || keys.ArrowRight ? 1 : 0);
 
+    // Car steering is also based on the camera's horizontal facing direction.
+    const camForward = new T.Vector3();
+    camera.getWorldDirection(camForward);
+    camForward.y = 0;
+    camForward.normalize();
+    const camAngle = Math.atan2(camForward.x, camForward.z);
+
     if (throttle > 0) speed += 28 * dt;
     else if (throttle < 0) speed -= 32 * dt;
     else speed *= Math.pow(0.05, dt);
 
     speed = Math.max(-12, Math.min(45, speed));
 
-    heading += steer * 1.8 * dt * (speed >= 0 ? 1 : -1);
+    heading = camAngle + steer * 0.45 * (speed >= 0 ? 1 : -1);
 
     car.position.x += Math.sin(heading) * speed * dt;
     car.position.z += Math.cos(heading) * speed * dt;
