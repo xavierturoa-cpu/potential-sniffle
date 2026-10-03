@@ -24,28 +24,13 @@ try {
   scene.add(sun);
   scene.add(new T.HemisphereLight(0xbfe9ff, 0x35502f, 1.2));
 
-  // A huge spherical world gives the map a visible round horizon.
-  const worldSphere = new T.Mesh(
-    new T.SphereGeometry(145, 64, 32),
-    new T.MeshBasicMaterial({ color: 0x4d963f })
-  );
-  worldSphere.position.set(0, -145, 0);
-  scene.add(worldSphere);
-
   // Flat town surface tangent to the spherical world.
   const ground = new T.Mesh(
-    new T.PlaneGeometry(210, 210),
+    new T.PlaneGeometry(240, 240),
     new T.MeshLambertMaterial({ color: 0x4d963f })
   );
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
-
-  // Atmospheric sky dome.
-  const sky = new T.Mesh(
-    new T.SphereGeometry(330, 32, 16),
-    new T.MeshBasicMaterial({ color: 0x8fd3ff, side: T.BackSide, fog: false })
-  );
-  scene.add(sky);
 
   // Sun and moon.
   const sunBall = new T.Mesh(
