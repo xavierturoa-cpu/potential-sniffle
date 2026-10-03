@@ -21,7 +21,7 @@ try {
   // Flat town surface tangent to the spherical world.
   const ground = new T.Mesh(
     new T.PlaneGeometry(240, 240),
-    new T.MeshLambertMaterial({ color: 0x4d963f })
+    new T.MeshBasicMaterial({ color: 0x4d963f })
   );
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
@@ -595,10 +595,9 @@ try {
       planeSpeed = Math.max(0, Math.min(65, planeSpeed));
 
       planeVehicle.rotation.y += turn * 1.4 * dt;
-      planePitch += climb * 0.8 * dt;
-      planePitch *= Math.pow(0.35, dt);
-      planePitch = Math.max(-0.55, Math.min(0.55, planePitch));
-      planeVehicle.rotation.x = planePitch;
+      planeVehicle.position.y += climb * 12 * dt;
+      planeVehicle.position.y = Math.max(0.5, planeVehicle.position.y);
+      planeVehicle.rotation.x = 0;
 
       const forward = new T.Vector3(0, 0, -1).applyEuler(planeVehicle.rotation).normalize();
       planeVehicle.position.addScaledVector(forward, planeSpeed * dt);
