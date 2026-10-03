@@ -18,13 +18,56 @@ try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
 
-  // Flat town surface tangent to the spherical world.
-  const ground = new T.Mesh(
-    new T.PlaneGeometry(240, 240),
-    new T.MeshBasicMaterial({ color: 0x4d963f })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
+  // Procedurally generated endless-ish land. Chunks are created around the player/vehicles.
+  const terrainChunks = new Map();
+  const CHUNK_SIZE = 80;
+  const TERRAIN_RADIUS = 6;
+
+  function terrainHeight(x, z) {
+    const a = Math.sin(x * 0.035) * 1.2;
+    const b = Math.cos(z * 0.045) * 1.0;
+    const c = Math.sin((x + z) * 0.018) * 1.4;
+    return Math.max(0, a + b + c);
+  }
+
+  function makeTerrainChunk(cx, cz) {
+    const key = cx + "," + cz;
+    if (terrainChunks.has(key)) return;
+
+    const segments = 16;
+    const geometry = new T.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, segments, segments);
+    geometry.rotateX(-Math.PI / 2);
+
+    const positions = geometry.attributes.position;
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i) + cx * CHUNK_SIZE;
+      const z = positions.getZ(i) + cz * CHUNK_SIZE;
+      positions.setY(i, terrainHeight(x, z));
+    }
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
+
+    const mesh = new T.Mesh(
+      geometry,
+      new T.MeshBasicMaterial({ color: 0x4d963f })
+    );
+    scene.add(mesh);
+    terrainChunks.set(key, mesh);
+  }
+
+  function updateTerrainAround(x, z) {
+    const centerX = Math.floor(x / CHUNK_SIZE);
+    const centerZ = Math.floor(z / CHUNK_SIZE);
+    for (let dx = -TERRAIN_RADIUS; dx <= TERRAIN_RADIUS; dx++) {
+      for (let dz = -TERRAIN_RADIUS; dz <= TERRAIN_RADIUS; dz++) {
+        if (dx * dx + dz * dz <= TERRAIN_RADIUS * TERRAIN_RADIUS) {
+          makeTerrainChunk(centerX + dx, centerZ + dz);
+        }
+      }
+    }
+  }
+
+  updateTerrainAround(0, 0);
 
   // Lakes.
   function makeLake(x, z, w, d) {
@@ -203,23 +246,23 @@ try {
     bots.push({ object: bot, target: new T.Vector3(x, 0, z), timer: 0 });
   }
 
-  function buildTown() {
+  const TOWN_OFFSET_X = 500;\n  const TOWN_OFFSET_Z = 500;\n\n  function buildTown() {
 
     // Small town square / streets.
     const roadMat = new T.MeshBasicMaterial({ color: 0x777777 });
     const road1 = new T.Mesh(new T.BoxGeometry(18, 0.03, 90), roadMat);
-    road1.position.y = 0.015;
+    road1.position.set(TOWN_OFFSET_X, 0.015, TOWN_OFFSET_Z);
     scene.add(road1);
     const road2 = new T.Mesh(new T.BoxGeometry(90, 0.03, 18), roadMat);
-    road2.position.y = 0.02;
+    road2.position.set(TOWN_OFFSET_X, 0.02, TOWN_OFFSET_Z);
     scene.add(road2);
 
-    makeHouse(-30, -30, 10, 10, 0xd6a36a);
-    makeHouse(30, -30, 12, 9, 0xc97b63);
-    makeHouse(-30, 30, 11, 10, 0x9ccf8b);
-    makeHouse(30, 30, 10, 12, 0xe0c477);
-    makeHouse(-45, 0, 9, 12, 0xb8a1d9);
-    makeHouse(45, 0, 9, 12, 0xd28b8b);
+    makeHouse(TOWN_OFFSET_X - 30, TOWN_OFFSET_Z - 30, 10, 10, 0xd6a36a);
+    makeHouse(TOWN_OFFSET_X + 30, TOWN_OFFSET_Z - 30, 12, 9, 0xc97b63);
+    makeHouse(TOWN_OFFSET_X - 30, TOWN_OFFSET_Z + 30, 11, 10, 0x9ccf8b);
+    makeHouse(TOWN_OFFSET_X + 30, TOWN_OFFSET_Z + 30, 10, 12, 0xe0c477);
+    makeHouse(TOWN_OFFSET_X - 45, TOWN_OFFSET_Z, 9, 12, 0xb8a1d9);
+    makeHouse(TOWN_OFFSET_X + 45, TOWN_OFFSET_Z, 9, 12, 0xd28b8b);
 
     const treeSpots = [
       [-15,-38,1], [15,-38,1.1], [-15,38,1], [15,38,1.15],
@@ -228,17 +271,17 @@ try {
       [-55,-45,1.2], [55,-45,1.2], [-55,45,1.15], [55,45,1.2],
       [-70,-20,1], [70,-20,1], [-70,20,1.1], [70,20,1]
     ];
-    treeSpots.forEach(([x,z,s]) => makeTree(x,z,s));
+    treeSpots.forEach(([x,z,s]) => makeTree(TOWN_OFFSET_X + x, TOWN_OFFSET_Z + z, s));
 
-    makeBot(-8, -8, 0xf1c40f);
-    makeBot(8, -8, 0x9b59b6);
-    makeBot(-8, 8, 0x2ecc71);
-    makeBot(8, 8, 0xe67e22);
-    makeBot(-38, 12, 0x3498db);
-    makeBot(38, -12, 0xe74c3c);
+    makeBot(TOWN_OFFSET_X + -8, TOWN_OFFSET_Z + -8, 0xf1c40f);
+    makeBot(TOWN_OFFSET_X + 8, TOWN_OFFSET_Z + -8, 0x9b59b6);
+    makeBot(TOWN_OFFSET_X + -8, TOWN_OFFSET_Z + 8, 0x2ecc71);
+    makeBot(TOWN_OFFSET_X + 8, TOWN_OFFSET_Z + 8, 0xe67e22);
+    makeBot(TOWN_OFFSET_X + -38, TOWN_OFFSET_Z + 12, 0x3498db);
+    makeBot(TOWN_OFFSET_X + 38, TOWN_OFFSET_Z + -12, 0xe74c3c);
 
-    makeLake(-62, 0, 14, 9);
-    makeLake(62, 0, 12, 8);
+    makeLake(TOWN_OFFSET_X - 62, TOWN_OFFSET_Z, 14, 9);
+    makeLake(TOWN_OFFSET_X + 62, TOWN_OFFSET_Z, 12, 8);
   }
 
   function makePlane() {
@@ -511,7 +554,7 @@ try {
 
     if (e.code === "KeyE" && !inCar && !insideHouse && Math.hypot(player.position.x - planeVehicle.position.x, player.position.z - planeVehicle.position.z) < 5) {
       inPlane = !inPlane;
-      if (inPlane) {
+      updateTerrainAround(inPlane ? planeVehicle.position.x : (inCar ? car.position.x : player.position.x), inPlane ? planeVehicle.position.z : (inCar ? car.position.z : player.position.z));\n\n    if (inPlane) {
         planeVehicle.position.set(player.position.x, Math.max(1.5, player.position.y + 0.8), player.position.z);
         player.visible = false;
         planeSpeed = 0;
