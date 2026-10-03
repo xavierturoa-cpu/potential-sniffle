@@ -596,6 +596,129 @@ try {
     );
   }
 
+
+  // Single pizza shop: the only pizza location in the world.
+  const pizzaShop = new T.Group();
+  pizzaShop.position.set(0, 0, -55);
+  scene.add(pizzaShop);
+
+  const pizzaWall = new T.Mesh(
+    new T.BoxGeometry(18, 7, 12),
+    new T.MeshBasicMaterial({ color: 0xd85b3f })
+  );
+  pizzaWall.position.y = 3.5;
+  pizzaShop.add(pizzaWall);
+
+  const pizzaRoof = new T.Mesh(
+    new T.ConeGeometry(12, 4, 4),
+    new T.MeshBasicMaterial({ color: 0x8b2f25 })
+  );
+  pizzaRoof.position.y = 9;
+  pizzaRoof.rotation.y = Math.PI / 4;
+  pizzaShop.add(pizzaRoof);
+
+  const pizzaSign = new T.Mesh(
+    new T.BoxGeometry(10, 2.2, 0.3),
+    new T.MeshBasicMaterial({ color: 0xffd34d })
+  );
+  pizzaSign.position.set(0, 6.5, 6.15);
+  pizzaShop.add(pizzaSign);
+
+  const oven = new T.Mesh(
+    new T.BoxGeometry(4, 3, 3),
+    new T.MeshBasicMaterial({ color: 0x444444 })
+  );
+  oven.position.set(-5, 1.5, 0);
+  pizzaShop.add(oven);
+
+  addCollider(0, -55, 9, 6);
+
+  const pizzaUI = document.createElement("div");
+  pizzaUI.style.cssText = "position:fixed;left:14px;top:14px;padding:10px 14px;background:rgba(0,0,0,.72);color:white;font:14px Arial;line-height:1.5;border-radius:8px;z-index:10;max-width:330px;";
+  pizzaUI.innerHTML = "<b>🍕 WORLD PIZZA</b><br>Go to the red pizza shop in your spawn town.<br><small>Press E near it to start an order.</small>";
+  document.body.appendChild(pizzaUI);
+
+  let pizzaOrder = null;
+  let pizzaToppings = [];
+  let pizzaReady = false;
+  let pizzaMoney = 0;
+
+  const pizzaToppingNames = ["Pepperoni", "Mushrooms", "Extra Cheese", "Olives", "Peppers"];
+  const pizzaTowns = [
+    ["Sunset Town", 900, 350],
+    ["Pine Town", -850, 700],
+    ["Desert Town", 1100, -900],
+    ["Lake Town", -1200, -700]
+  ];
+
+  function nearPizzaShop() {
+    return Math.hypot(player.position.x, player.position.z + 55) < 10;
+  }
+
+  function nearPizzaTown() {
+    if (!pizzaOrder) return false;
+    return Math.hypot(player.position.x - pizzaOrder.x, player.position.z - pizzaOrder.z) < 90;
+  }
+
+  function updatePizzaUI() {
+    if (!pizzaOrder) {
+      pizzaUI.innerHTML = "<b>🍕 WORLD PIZZA</b><br>Only one pizza shop exists on Earth.<br>Go to the red shop in the spawn town.<br><small>E = start an order</small>";
+      return;
+    }
+    pizzaUI.innerHTML =
+      "<b>🍕 PIZZA DELIVERY</b><br>" +
+      "Deliver to: <b>" + pizzaOrder.name + "</b><br>" +
+      "Toppings: " + (pizzaToppings.length ? pizzaToppings.join(", ") : "none") + "<br>" +
+      "Status: <b>" + (pizzaReady ? "READY TO DELIVER" : "COOK THE PIZZA") + "</b><br>" +
+      "Money: $" + pizzaMoney + "<br><small>1-5 = toppings • F = cook • G = deliver</small>";
+  }
+
+  function startPizzaOrder() {
+    const t = pizzaTowns[Math.floor(Math.random() * pizzaTowns.length)];
+    pizzaOrder = { name: t[0], x: t[1], z: t[2] };
+    pizzaToppings = [];
+    pizzaReady = false;
+    updatePizzaUI();
+  }
+
+  function addPizzaTopping(n) {
+    if (!pizzaOrder || pizzaReady) return;
+    const topping = pizzaToppingNames[n - 1];
+    if (!pizzaToppings.includes(topping)) pizzaToppings.push(topping);
+    updatePizzaUI();
+  }
+
+  function cookPizza() {
+    if (!pizzaOrder || !pizzaToppings.length || pizzaReady || !nearPizzaShop()) return;
+    pizzaReady = true;
+    updatePizzaUI();
+    sfx("enter");
+  }
+
+  function deliverPizza() {
+    if (!pizzaOrder || !pizzaReady || !nearPizzaTown()) return;
+    pizzaMoney += 100 + pizzaToppings.length * 20;
+    pizzaOrder = null;
+    pizzaToppings = [];
+    pizzaReady = false;
+    updatePizzaUI();
+    sfx("exit");
+  }
+
+  addEventListener("keydown", e => {
+    if (e.repeat) return;
+    if (e.code === "Digit1") addPizzaTopping(1);
+    if (e.code === "Digit2") addPizzaTopping(2);
+    if (e.code === "Digit3") addPizzaTopping(3);
+    if (e.code === "Digit4") addPizzaTopping(4);
+    if (e.code === "Digit5") addPizzaTopping(5);
+    if (e.code === "KeyF") cookPizza();
+    if (e.code === "KeyG") deliverPizza();
+    if (e.code === "KeyE" && nearPizzaShop() && !pizzaOrder && !inCar && !inPlane && !insideHouse) startPizzaOrder();
+  });
+
+  updatePizzaUI();
+
   const clock = new T.Clock();
 
   renderer.setAnimationLoop(() => {
