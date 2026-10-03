@@ -194,7 +194,7 @@ try {
 
     const entrance = { x, z: z + depth / 2 + 1.5, insideX: x, insideZ: z + depth / 2 - 2.2, width, depth };
     houseEntrances.push(entrance);
-    houseInteriors.push({ interior, entrance });
+    houseInteriors.push({ interior, entrance, exterior: house });
 
     // Furniture collision while inside.
     interiorColliders.push(
@@ -419,6 +419,7 @@ try {
     if (insideHouse) {
       const h = insideHouse.entrance;
       insideHouse.interior.visible = false;
+      insideHouse.exterior.visible = true;
       player.position.set(h.x, 0, h.z);
       insideHouse = null;
       sfx("door");
@@ -430,6 +431,7 @@ try {
         const hi = houseInteriors.find(v => v.entrance === h);
         if (hi) {
           hi.interior.visible = true;
+          hi.exterior.visible = false;
           player.position.set(h.insideX, 0, h.insideZ);
           verticalVelocity = 0;
           grounded = true;
@@ -633,6 +635,7 @@ try {
       planePitch += climb * 0.8 * dt;
       planePitch *= Math.pow(0.35, dt);
       planePitch = Math.max(-0.55, Math.min(0.55, planePitch));
+      planeVehicle.rotation.x = planePitch;
 
       const forward = new T.Vector3(0, 0, -1).applyEuler(planeVehicle.rotation).normalize();
       planeVehicle.position.addScaledVector(forward, planeSpeed * dt);
