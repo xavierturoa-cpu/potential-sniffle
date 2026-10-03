@@ -31,7 +31,9 @@ try {
   // World collision boxes. Buildings and trees register solid rectangles here.
   const colliders = [];
   const houseEntrances = [];
+  const houseInteriors = [];
   const bots = [];
+
   function addCollider(x, z, halfX, halfZ) {
     colliders.push({ x, z, halfX, halfZ });
   }
@@ -93,6 +95,51 @@ try {
 
     house.position.set(x, 0, z);
     scene.add(house);
+
+    // Simple furnished interior, hidden until the player enters the house.
+    const interior = new T.Group();
+    const floor = new T.Mesh(
+      new T.BoxGeometry(width - 0.5, 0.12, depth - 0.5),
+      new T.MeshBasicMaterial({ color: 0x9b7653 })
+    );
+    floor.position.y = 0.06;
+    interior.add(floor);
+
+    const backWall = new T.Mesh(
+      new T.BoxGeometry(width - 0.5, 3.0, 0.15),
+      new T.MeshBasicMaterial({ color: 0xf0e4d0 })
+    );
+    backWall.position.set(0, 1.5, -(depth / 2 - 0.25));
+    interior.add(backWall);
+
+    const couch = new T.Mesh(
+      new T.BoxGeometry(Math.min(3.2, width - 2), 0.8, 0.9),
+      new T.MeshBasicMaterial({ color: 0x4d6fa8 })
+    );
+    couch.position.set(0, 0.4, -1.2);
+    interior.add(couch);
+
+    const table = new T.Mesh(
+      new T.BoxGeometry(1.6, 0.15, 1.0),
+      new T.MeshBasicMaterial({ color: 0x6b4423 })
+    );
+    table.position.set(0, 0.8, 0.4);
+    interior.add(table);
+
+    const bed = new T.Mesh(
+      new T.BoxGeometry(Math.min(2.4, width - 2), 0.45, 1.7),
+      new T.MeshBasicMaterial({ color: 0xb7d7f0 })
+    );
+    bed.position.set(width / 2 - 1.3, 0.23, depth / 2 - 1.5);
+    interior.add(bed);
+
+    interior.position.set(x, 0, z);
+    interior.visible = false;
+    scene.add(interior);
+    houseInteriors.push({
+      interior,
+      entrance: houseEntrances[houseEntrances.length - 1]
+    });
     // Leave a doorway gap in the front wall by making the collision split around it.
     colliders.pop();
     const gap = 1.15;
@@ -263,7 +310,33 @@ try {
   scene.add(player);
 
   let inCar = false;
+  let insideHouse = null;
   let speed = 0;
+
+  function toggleNearestHouse() {
+    if (insideHouse) {
+      const h = insideHouse.entrance;
+      insideHouse.interior.visible = false;
+      player.position.set(h.x, 0, h.z);
+      insideHouse = null;
+      sfx("door");
+      return true;
+    }
+
+    for (const h of houseEntrances) {
+      if (Math.hypot(player.position.x - h.x, player.position.z - h.z) < 2.2) {
+        const hi = houseInteriors.find(v => v.entrance === h);
+        if (hi) {
+          hi.interior.visible = true;
+          player.position.set(h.insideX, 0, h.insideZ);
+          insideHouse = hi;
+          sfx("door");
+          return true;
+        }
+      }
+    }
+    return false;
+  }
   let heading = 0;
   const keys = {};
   let audioCtx = null;
@@ -412,19 +485,7 @@ try {
   }
 
   function tryEnterHouse() {
-    for (const h of houseEntrances) {
-      if (Math.hypot(player.position.x - h.x, player.position.z - h.z) < 2.2) {
-        player.position.set(h.insideX, 0, h.insideZ);
-        sfx("door");
-        return true;
-      }
-      if (Math.hypot(player.position.x - h.insideX, player.position.z - h.insideZ) < 2.0) {
-        player.position.set(h.x, 0, h.z);
-        sfx("door");
-        return true;
-      }
-    }
-    return false;
+    return toggleNearestHouse();
   }
 
   function update(dt) {
