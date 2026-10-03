@@ -30,6 +30,8 @@ try {
 
   // World collision boxes. Buildings and trees register solid rectangles here.
   const colliders = [];
+  const houseEntrances = [];
+  const bots = [];
   function addCollider(x, z, halfX, halfZ) {
     colliders.push({ x, z, halfX, halfZ });
   }
@@ -91,7 +93,13 @@ try {
 
     house.position.set(x, 0, z);
     scene.add(house);
-    addCollider(x, z, width / 2 + 0.15, depth / 2 + 0.15);
+    // Leave a doorway gap in the front wall by making the collision split around it.
+    colliders.pop();
+    const gap = 1.15;
+    const side = (width / 2 + 0.15 - gap / 2);
+    addCollider(x - (width / 4 + gap / 2), z, side, depth / 2 + 0.15);
+    addCollider(x + (width / 4 + gap / 2), z, side, depth / 2 + 0.15);
+    houseEntrances.push({ x, z: z + depth / 2 + 1.5, insideX: x, insideZ: z + depth / 2 - 2.2, width, depth });
   }
 
   function makeTree(x, z, scale = 1) {
@@ -113,7 +121,53 @@ try {
     addCollider(x, z, 0.75 * scale, 0.75 * scale);
   }
 
+  function makeBot(x, z, shirtColor) {
+    const bot = new T.Group();
+    const legs = new T.Mesh(new T.BoxGeometry(0.55, 0.9, 0.38), new T.MeshBasicMaterial({ color: 0x333344 }));
+    legs.position.y = 0.45;
+    bot.add(legs);
+    const shirt = new T.Mesh(new T.BoxGeometry(0.85, 1, 0.52), new T.MeshBasicMaterial({ color: shirtColor }));
+    shirt.position.y = 1.35;
+    bot.add(shirt);
+    const head = new T.Mesh(new T.SphereGeometry(0.35, 12, 10), new T.MeshBasicMaterial({ color: 0xf0b27a }));
+    head.position.y = 2.1;
+    bot.add(head);
+
+    bot.position.set(x, 0, z);
+    scene.add(bot);
+    bots.push({ object: bot, target: new T.Vector3(x, 0, z), timer: 0 });
+  }
+
+  function makeLandmark(x, z, type) {
+    const g = new T.Group();
+    if (type === "tower") {
+      const base = new T.Mesh(new T.BoxGeometry(4, 16, 4), new T.MeshBasicMaterial({ color: 0xeeeeee }));
+      base.position.y = 8;
+      g.add(base);
+      const roof = new T.Mesh(new T.ConeGeometry(3.5, 5, 16), new T.MeshBasicMaterial({ color: 0x777777 }));
+      roof.position.y = 18;
+      g.add(roof);
+      const antenna = new T.Mesh(new T.CylinderGeometry(0.12, 0.12, 7, 8), new T.MeshBasicMaterial({ color: 0x444444 }));
+      antenna.position.y = 24;
+      g.add(antenna);
+      addCollider(x, z, 2.2, 2.2);
+    } else if (type === "bridge") {
+      const deck = new T.Mesh(new T.BoxGeometry(24, 1, 5), new T.MeshBasicMaterial({ color: 0xc94b4b }));
+      deck.position.y = 4;
+      g.add(deck);
+      for (const px of [-9, 9]) {
+        const cable = new T.Mesh(new T.TorusGeometry(7, 0.12, 6, 32, Math.PI), new T.MeshBasicMaterial({ color: 0xd94f4f }));
+        cable.rotation.y = Math.PI / 2;
+        cable.position.set(px, 8, 0);
+        g.add(cable);
+      }
+    }
+    g.position.set(x, 0, z);
+    scene.add(g);
+  }
+
   function buildTown() {
+
     // Small town square / streets.
     const roadMat = new T.MeshBasicMaterial({ color: 0x777777 });
     const road1 = new T.Mesh(new T.BoxGeometry(18, 0.03, 90), roadMat);
@@ -138,6 +192,26 @@ try {
       [-70,-20,1], [70,-20,1], [-70,20,1.1], [70,20,1]
     ];
     treeSpots.forEach(([x,z,s]) => makeTree(x,z,s));
+
+    // San Francisco-inspired additions: steep street, bay lookout and a red bridge landmark.
+    const hill = new T.Mesh(new T.BoxGeometry(22, 0.6, 70), new T.MeshBasicMaterial({ color: 0x777777 }));
+    hill.position.set(72, 0.3, 0);
+    hill.rotation.z = -0.16;
+    scene.add(hill);
+
+    const lookout = new T.Mesh(new T.CylinderGeometry(7, 7, 0.5, 24), new T.MeshBasicMaterial({ color: 0xdddddd }));
+    lookout.position.set(78, 0.25, 0);
+    scene.add(lookout);
+
+    makeLandmark(70, -55, "tower");
+    makeLandmark(70, 55, "bridge");
+
+    makeBot(-8, -8, 0xf1c40f);
+    makeBot(8, -8, 0x9b59b6);
+    makeBot(-8, 8, 0x2ecc71);
+    makeBot(8, 8, 0xe67e22);
+    makeBot(-38, 12, 0x3498db);
+    makeBot(38, -12, 0xe74c3c);
   }
 
   function makeCar() {
@@ -280,6 +354,8 @@ try {
       e.preventDefault();
     }
 
+    if (e.code === "KeyE" && !inCar && tryEnterHouse()) return;
+
     if (e.code === "KeyE") {
       const dx = player.position.x - car.position.x;
       const dz = player.position.z - car.position.z;
@@ -303,6 +379,47 @@ try {
   addEventListener("keyup", (e) => {
     keys[e.code] = false;
   });
+
+  function updateBots(dt) {
+    for (const bot of bots) {
+      bot.timer -= dt;
+      if (bot.timer <= 0 || bot.object.position.distanceTo(bot.target) < 0.8) {
+        bot.timer = 1.5 + Math.random() * 3;
+        bot.target.set(
+          Math.max(-85, Math.min(85, bot.object.position.x + (Math.random() - 0.5) * 18)),
+          0,
+          Math.max(-85, Math.min(85, bot.object.position.z + (Math.random() - 0.5) * 18))
+        );
+      }
+
+      const dx = bot.target.x - bot.object.position.x;
+      const dz = bot.target.z - bot.object.position.z;
+      const len = Math.hypot(dx, dz);
+      if (len > 0.1) {
+        const mx = dx / len * 2.2 * dt;
+        const mz = dz / len * 2.2 * dt;
+        if (tryMove(bot.object, mx, mz, 0.55)) {
+          bot.object.rotation.y = Math.atan2(mx, mz);
+        } else {
+          bot.timer = 0;
+        }
+      }
+    }
+  }
+
+  function tryEnterHouse() {
+    for (const h of houseEntrances) {
+      if (Math.hypot(player.position.x - h.x, player.position.z - h.z) < 2.2) {
+        player.position.set(h.insideX, 0, h.insideZ);
+        return true;
+      }
+      if (Math.hypot(player.position.x - h.insideX, player.position.z - h.insideZ) < 2.0) {
+        player.position.set(h.x, 0, h.z);
+        return true;
+      }
+    }
+    return false;
+  }
 
   function update(dt) {
     if (!inCar) {
@@ -374,6 +491,7 @@ try {
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     update(dt);
+    updateBots(dt);
     renderer.render(scene, camera);
   });
 
