@@ -9,7 +9,6 @@ try {
 
   const scene = new T.Scene();
   scene.background = new T.Color(0x79bff2);
-  scene.fog = new T.Fog(0x79bff2, 90, 260);
 
   const camera = new T.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 700);
   camera.position.set(8, 7, 10);
@@ -19,11 +18,6 @@ try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
 
-  const sun = new T.DirectionalLight(0xffffff, 2.2);
-  sun.position.set(-80, 120, 60);
-  scene.add(sun);
-  scene.add(new T.HemisphereLight(0xbfe9ff, 0x35502f, 1.2));
-
   // Flat town surface tangent to the spherical world.
   const ground = new T.Mesh(
     new T.PlaneGeometry(240, 240),
@@ -31,21 +25,6 @@ try {
   );
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
-
-  // Sun and moon.
-  const sunBall = new T.Mesh(
-    new T.SphereGeometry(6, 24, 16),
-    new T.MeshBasicMaterial({ color: 0xfff1a8 })
-  );
-  sunBall.position.set(-120, 120, -170);
-  scene.add(sunBall);
-
-  const moonBall = new T.Mesh(
-    new T.SphereGeometry(4.5, 24, 16),
-    new T.MeshBasicMaterial({ color: 0xe8ecff })
-  );
-  moonBall.position.set(120, 90, -150);
-  scene.add(moonBall);
 
   // Lakes.
   function makeLake(x, z, w, d) {
@@ -80,7 +59,6 @@ try {
   }
 
   function canMoveTo(x, z, radius) {
-    if (Math.abs(x) > 102 - radius || Math.abs(z) > 102 - radius) return false;
     const active = insideHouse ? interiorColliders : colliders;
     return !active.some(box => circleHitsCollider(x, z, radius, box));
   }
@@ -609,7 +587,7 @@ try {
     if (inPlane) {
       const throttle = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
       const turn = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
-      const climb = (keys.Space ? 1 : 0) - (keys.ShiftLeft || keys.ShiftRight ? 1 : 0);
+      const climb = (keys.ShiftLeft || keys.ShiftRight ? 1 : 0) - (keys.Space ? 1 : 0);
 
       if (throttle > 0) planeSpeed += 18 * dt;
       else if (throttle < 0) planeSpeed -= 12 * dt;
@@ -624,9 +602,7 @@ try {
 
       const forward = new T.Vector3(0, 0, -1).applyEuler(planeVehicle.rotation).normalize();
       planeVehicle.position.addScaledVector(forward, planeSpeed * dt);
-      planeVehicle.position.y = Math.max(1.5, Math.min(110, planeVehicle.position.y));
-      planeVehicle.position.x = Math.max(-100, Math.min(100, planeVehicle.position.x));
-      planeVehicle.position.z = Math.max(-100, Math.min(100, planeVehicle.position.z));
+      planeVehicle.position.y = Math.max(0.5, planeVehicle.position.y);
 
       updateCamera(planeVehicle);
       return;
