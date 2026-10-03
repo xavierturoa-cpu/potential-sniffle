@@ -337,7 +337,7 @@ try {
     camera.getWorldDirection(camForward);
     camForward.y = 0;
     camForward.normalize();
-    const camAngle = Math.atan2(camForward.x, camForward.z);
+    const camAngle = -Math.atan2(camForward.x, camForward.z);
 
     if (throttle > 0) speed += 28 * dt;
     else if (throttle < 0) speed -= 32 * dt;
