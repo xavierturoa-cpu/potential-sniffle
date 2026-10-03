@@ -138,34 +138,6 @@ try {
     bots.push({ object: bot, target: new T.Vector3(x, 0, z), timer: 0 });
   }
 
-  function makeLandmark(x, z, type) {
-    const g = new T.Group();
-    if (type === "tower") {
-      const base = new T.Mesh(new T.BoxGeometry(4, 16, 4), new T.MeshBasicMaterial({ color: 0xeeeeee }));
-      base.position.y = 8;
-      g.add(base);
-      const roof = new T.Mesh(new T.ConeGeometry(3.5, 5, 16), new T.MeshBasicMaterial({ color: 0x777777 }));
-      roof.position.y = 18;
-      g.add(roof);
-      const antenna = new T.Mesh(new T.CylinderGeometry(0.12, 0.12, 7, 8), new T.MeshBasicMaterial({ color: 0x444444 }));
-      antenna.position.y = 24;
-      g.add(antenna);
-      addCollider(x, z, 2.2, 2.2);
-    } else if (type === "bridge") {
-      const deck = new T.Mesh(new T.BoxGeometry(24, 1, 5), new T.MeshBasicMaterial({ color: 0xc94b4b }));
-      deck.position.y = 4;
-      g.add(deck);
-      for (const px of [-9, 9]) {
-        const cable = new T.Mesh(new T.TorusGeometry(7, 0.12, 6, 32, Math.PI), new T.MeshBasicMaterial({ color: 0xd94f4f }));
-        cable.rotation.y = Math.PI / 2;
-        cable.position.set(px, 8, 0);
-        g.add(cable);
-      }
-    }
-    g.position.set(x, 0, z);
-    scene.add(g);
-  }
-
   function buildTown() {
 
     // Small town square / streets.
@@ -192,19 +164,6 @@ try {
       [-70,-20,1], [70,-20,1], [-70,20,1.1], [70,20,1]
     ];
     treeSpots.forEach(([x,z,s]) => makeTree(x,z,s));
-
-    // San Francisco-inspired additions: steep street, bay lookout and a red bridge landmark.
-    const hill = new T.Mesh(new T.BoxGeometry(22, 0.6, 70), new T.MeshBasicMaterial({ color: 0x777777 }));
-    hill.position.set(72, 0.3, 0);
-    hill.rotation.z = -0.16;
-    scene.add(hill);
-
-    const lookout = new T.Mesh(new T.CylinderGeometry(7, 7, 0.5, 24), new T.MeshBasicMaterial({ color: 0xdddddd }));
-    lookout.position.set(78, 0.25, 0);
-    scene.add(lookout);
-
-    makeLandmark(70, -55, "tower");
-    makeLandmark(70, 55, "bridge");
 
     makeBot(-8, -8, 0xf1c40f);
     makeBot(8, -8, 0x9b59b6);
@@ -307,6 +266,47 @@ try {
   let speed = 0;
   let heading = 0;
   const keys = {};
+  let audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  function sfx(type) {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (type === "enter") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+    } else if (type === "exit") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.12);
+    } else if (type === "bump") {
+      osc.type = "square";
+      osc.frequency.setValueAtTime(90, now);
+    } else if (type === "door") {
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(330, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.18);
+    }
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }
   let camYaw = 0.7;
   let camPitch = 0.48;
   let camDistance = 11;
@@ -314,6 +314,8 @@ try {
   let lastMouseX = 0;
   let lastMouseY = 0;
 
+  addEventListener("pointerdown", initAudio, { once: true });
+  addEventListener("keydown", initAudio, { once: true });
   renderer.domElement.style.cursor = "grab";
   renderer.domElement.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
@@ -364,8 +366,10 @@ try {
         if (inCar) {
           player.visible = false;
           speed = 0;
+          sfx("enter");
         } else {
           player.visible = true;
+          sfx("exit");
           player.position.set(
             car.position.x + Math.cos(heading) * 3,
             0,
@@ -411,10 +415,12 @@ try {
     for (const h of houseEntrances) {
       if (Math.hypot(player.position.x - h.x, player.position.z - h.z) < 2.2) {
         player.position.set(h.insideX, 0, h.insideZ);
+        sfx("door");
         return true;
       }
       if (Math.hypot(player.position.x - h.insideX, player.position.z - h.insideZ) < 2.0) {
         player.position.set(h.x, 0, h.z);
+        sfx("door");
         return true;
       }
     }
@@ -465,7 +471,10 @@ try {
     heading = camAngle + steer * 0.45 * (speed >= 0 ? 1 : -1);
 
     const moved = tryMove(car, Math.sin(heading) * speed * dt, Math.cos(heading) * speed * dt, 1.25);
-    if (!moved) speed *= -0.18;
+    if (!moved) {
+      if (Math.abs(speed) > 2) sfx("bump");
+      speed *= -0.18;
+    }
     car.rotation.y = heading;
 
     updateCamera(car);
