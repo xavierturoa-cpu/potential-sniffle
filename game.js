@@ -345,7 +345,7 @@ try {
 
     speed = Math.max(-12, Math.min(45, speed));
 
-    heading = camAngle + steer * 0.45 * (speed >= 0 ? 1 : -1);
+    heading = camAngle - steer * 0.45 * (speed >= 0 ? 1 : -1);
 
     const moved = tryMove(car, Math.sin(heading) * speed * dt, Math.cos(heading) * speed * dt, 1.25);
     if (!moved) speed *= -0.18;
