@@ -395,6 +395,47 @@ try {
   buildTown(1100, -900);
   buildTown(-1200, -700);
 
+  // Long highways connecting every town.
+  function makeHighway(x1, z1, x2, z2, width = 12) {
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const length = Math.hypot(dx, dz);
+    const road = new T.Mesh(
+      new T.BoxGeometry(width, 0.035, length),
+      new T.MeshBasicMaterial({ color: 0x555555 })
+    );
+    road.position.set((x1 + x2) / 2, 0.025, (z1 + z2) / 2);
+    road.rotation.y = Math.atan2(dx, dz);
+    scene.add(road);
+
+    // Center markings.
+    const line = new T.Mesh(
+      new T.BoxGeometry(0.35, 0.045, length),
+      new T.MeshBasicMaterial({ color: 0xf5d742 })
+    );
+    line.position.set(road.position.x, 0.047, road.position.z);
+    line.rotation.y = road.rotation.y;
+    scene.add(line);
+  }
+
+  const townPoints = [
+    [0, 0],
+    [900, 350],
+    [-850, 700],
+    [1100, -900],
+    [-1200, -700]
+  ];
+
+  // Connect towns in a continuous network.
+  makeHighway(0, 0, 900, 350);
+  makeHighway(0, 0, -850, 700);
+  makeHighway(0, 0, 1100, -900);
+  makeHighway(0, 0, -1200, -700);
+  makeHighway(900, 350, -850, 700);
+  makeHighway(900, 350, 1100, -900);
+  makeHighway(-850, 700, -1200, -700);
+  makeHighway(1100, -900, -1200, -700);
+
   const car = makeCar();
   car.position.set(3, 0, 0);
   scene.add(car);
