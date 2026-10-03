@@ -60,6 +60,13 @@ try {
   }
 
   updateTerrainAround(0, 0);
+  const colliders = [];
+  const interiorColliders = [];
+  const houseEntrances = [];
+  const houseInteriors = [];
+  const bots = [];
+  const lakes = [];
+
   const natureChunks = new Map();
 
   function seededRandom(seed) {
