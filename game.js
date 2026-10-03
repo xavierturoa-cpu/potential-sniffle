@@ -84,6 +84,26 @@ try {
     head.position.y = 2.1;
     player.add(head);
 
+    // Simple smiley face on the front of the head so forward is obvious.
+    const face = new T.Group();
+    face.position.set(0, 2.1, 0.31);
+
+    const eyeMat = new T.MeshBasicMaterial({ color: 0x111111 });
+    for (const x of [-0.11, 0.11]) {
+      const eye = new T.Mesh(new T.SphereGeometry(0.045, 8, 8), eyeMat);
+      eye.position.set(x, 0.08, 0);
+      face.add(eye);
+    }
+
+    const smile = new T.Mesh(
+      new T.TorusGeometry(0.11, 0.025, 6, 16, Math.PI),
+      eyeMat
+    );
+    smile.rotation.z = Math.PI;
+    smile.position.set(0, -0.07, 0);
+    face.add(smile);
+    player.add(face);
+
     return player;
   }
 
