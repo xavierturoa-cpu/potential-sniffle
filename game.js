@@ -551,7 +551,7 @@ try {
     if (e.code === "KeyE" && inPlane) {
       inPlane = false;
       player.visible = true;
-      player.position.set(planeVehicle.position.x, Math.max(0, planeVehicle.position.y - 1), planeVehicle.position.z);
+      player.position.set(planeVehicle.position.x + 2, Math.max(0, planeVehicle.position.y - 1), planeVehicle.position.z);
       sfx("exit");
       return;
     }
