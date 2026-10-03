@@ -560,7 +560,7 @@ try {
       inPlane = true;
       updateTerrainAround(inPlane ? planeVehicle.position.x : (inCar ? car.position.x : player.position.x), inPlane ? planeVehicle.position.z : (inCar ? car.position.z : player.position.z));
 
-    if (inPlane) {        planeVehicle.position.set(player.position.x, Math.max(1.5, player.position.y + 0.8), player.position.z);
+    if (inPlane) {        planeVehicle.position.set(player.position.x, 0.6, player.position.z);
         player.visible = false;
         planeSpeed = 0;
         sfx("enter");
